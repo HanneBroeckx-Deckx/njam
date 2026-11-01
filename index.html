@@ -1,0 +1,1628 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Njam</title>
+<meta name="description" content="Njam — jouw digitale receptenboek. Bewaar recepten uit foto's en documenten, label ze en schaal ze naar het aantal personen.">
+<meta name="theme-color" content="#F8F3EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1715" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  /* Brand: the logo's maroon #550C0C and cream #ECDBCD, used as accents (logo, buttons, quantities)
+     on neutral warm surfaces — large areas of maroon read as "too red". Dark mode uses an espresso
+     brown with cream as the accent. Label hues are muted earth tones that sit with both. */
+  :root {
+    --cream: #F8F3EC;
+    --cream-2: #EFE6DA;
+    --card: #FFFDF9;
+    --ink: #2A201E;
+    --ink-soft: #6B5E58;
+    --ink-faint: #A2958E;
+    --line: #E7DED2;
+    --brand: #550C0C;
+    --brand-ink: #FFF8F0;
+    --brand-soft: #F1E8E2;
+    --chip-ink: #FFF8F0;
+    --cocoa: #5B4034; --cocoa-text: #4A3128; --cocoa-soft: #EEE5DE;
+    --rose: #9A4257; --rose-text: #7E2E42; --rose-soft: #F4E5E8;
+    --mustard: #8A5E0A; --mustard-text: #6F4C05; --mustard-soft: #F4E9CF;
+    --sage: #557236; --sage-text: #3F5726; --sage-soft: #E3EBD8;
+    --slate: #39636F; --slate-text: #2A4C57; --slate-soft: #DCE8EB;
+    --shadow: rgba(60, 40, 30, 0.12);
+    --r-sm: 12px;
+    --r-md: 18px;
+    --r-lg: 26px;
+    --r-pill: 999px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --cream: #1F1715;
+      --cream-2: #2E2321;
+      --card: #29201E;
+      --ink: #F1E6DA;
+      --ink-soft: #C4B5A9;
+      --ink-faint: #8C7D74;
+      --line: #3D312D;
+      --brand: #ECDBCD;
+      --brand-ink: #550C0C;
+      --brand-soft: #3A2D2A;
+      --chip-ink: #2A1A17;
+      --cocoa: #D9C3B4; --cocoa-text: #E8D6C9; --cocoa-soft: #3E302B;
+      --rose: #E6AFBA; --rose-text: #F0C4CC; --rose-soft: #47282F;
+      --mustard: #E3C27A; --mustard-text: #EDD39A; --mustard-soft: #46361A;
+      --sage: #B6CC98; --sage-text: #CADDB2; --sage-soft: #2F3A24;
+      --slate: #A7C7D1; --slate-text: #C0D9E0; --slate-soft: #263A40;
+      --shadow: rgba(0, 0, 0, 0.45);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --cream: #1F1715; --cream-2: #2E2321; --card: #29201E;
+    --ink: #F1E6DA; --ink-soft: #C4B5A9; --ink-faint: #8C7D74; --line: #3D312D;
+    --brand: #ECDBCD; --brand-ink: #550C0C; --brand-soft: #3A2D2A; --chip-ink: #2A1A17;
+    --cocoa: #D9C3B4; --cocoa-text: #E8D6C9; --cocoa-soft: #3E302B;
+    --rose: #E6AFBA; --rose-text: #F0C4CC; --rose-soft: #47282F;
+    --mustard: #E3C27A; --mustard-text: #EDD39A; --mustard-soft: #46361A;
+    --sage: #B6CC98; --sage-text: #CADDB2; --sage-soft: #2F3A24;
+    --slate: #A7C7D1; --slate-text: #C0D9E0; --slate-soft: #263A40;
+    --shadow: rgba(0, 0, 0, 0.45); color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+  img { max-width: 100%; display: block; }
+  button { font-family: inherit; }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 480px; margin: 0 auto; position: relative; min-height: 100vh; padding-bottom: 100px; }
+
+  /* ---------- topbar ---------- */
+  header.topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--cream);
+    padding: 16px 16px 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  /* logo artwork is used as a mask so it takes the theme's brand colour */
+  .logo-wordmark, .logo-mark {
+    display: block; background: var(--brand);
+    -webkit-mask: var(--logo-src) center / contain no-repeat;
+    mask: var(--logo-src) center / contain no-repeat;
+  }
+  .logo-wordmark { --logo-src: url(logo-wordmark.png); height: 34px; aspect-ratio: 480 / 176; }
+  .logo-mark { --logo-src: url(logo-mark.png); aspect-ratio: 600 / 509; }
+  .topbar-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    width: 42px; height: 42px; border-radius: var(--r-pill);
+    border: none; background: var(--card); color: var(--brand);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; cursor: pointer; box-shadow: 0 2px 8px var(--shadow);
+  }
+  .icon-btn:active { transform: scale(0.94); }
+
+  .search-wrap { padding: 0 16px 10px; }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--r-pill);
+    padding: 10px 16px; box-shadow: 0 2px 8px var(--shadow);
+  }
+  .search-box input {
+    border: none; outline: none; background: transparent; color: var(--ink);
+    font-family: inherit; font-size: 15px; flex: 1; min-width: 0;
+  }
+  .search-box input::placeholder { color: var(--ink-faint); }
+
+  /* ---------- tag chips ---------- */
+  .chip-row {
+    display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 14px;
+    scrollbar-width: none;
+  }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: var(--r-pill);
+    background: var(--card); border: 1.5px solid var(--line);
+    font-size: 13.5px; font-weight: 600; color: var(--ink-soft);
+    cursor: pointer; white-space: nowrap; user-select: none;
+  }
+  .chip.active { background: var(--chip-color, var(--brand)); border-color: var(--chip-color, var(--brand)); color: var(--chip-ink); }
+
+  /* ---------- recipe grid ---------- */
+  main.grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 4px 16px 20px;
+  }
+  .card {
+    background: var(--card); border-radius: var(--r-lg); overflow: hidden;
+    box-shadow: 0 4px 14px var(--shadow); cursor: pointer;
+    display: flex; flex-direction: column; transition: transform .12s ease;
+  }
+  .card:active { transform: scale(0.97); }
+  .card-photo { width: 100%; aspect-ratio: 4/3; object-fit: cover; background: var(--cream-2); }
+  .card-body { flex: 1; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .card-title {
+    font-family: 'Baloo 2', system-ui, sans-serif; font-weight: 700; font-size: 16px;
+    line-height: 1.2; color: var(--ink);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .mini-tag {
+    font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: var(--r-pill);
+    background: var(--tag-color-soft, var(--brand-soft)); color: var(--tag-color, var(--ink));
+  }
+  .card-servings {
+    font-family: 'Space Mono', monospace; font-size: 11px; color: var(--ink-soft); margin-top: auto;
+  }
+
+  /* ---------- empty state ---------- */
+  .empty-state {
+    text-align: center; padding: 60px 30px; color: var(--ink-soft);
+  }
+  .empty-state .logo-mark { width: 170px; margin: 0 auto 18px; }
+  .empty-state h2 {
+    font-family: 'Baloo 2', sans-serif; font-size: 20px; color: var(--ink); margin: 0 0 8px;
+  }
+  .empty-state p { font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
+  .empty-state .empty-import { font-size: 13px; margin: 18px 0 0; }
+  .link-btn {
+    background: none; border: none; padding: 0; font: inherit; font-weight: 700;
+    color: var(--brand); text-decoration: underline; cursor: pointer;
+  }
+
+  /* ---------- FAB ---------- */
+  .fab {
+    position: fixed; right: 20px; bottom: 24px; z-index: 30;
+    width: 60px; height: 60px; border-radius: var(--r-pill); border: none;
+    background: var(--brand); color: var(--brand-ink); font-size: 28px; line-height: 1;
+    box-shadow: 0 8px 20px var(--shadow); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fab:active { transform: scale(0.92); }
+  .wrap-inner-fab { max-width: 480px; margin: 0 auto; position: fixed; inset: 0 0 0 0; pointer-events: none; }
+
+  /* ---------- install banner ---------- */
+  .install-banner {
+    margin: 0 16px 14px; background: var(--card); border: 1.5px solid var(--line);
+    border-radius: var(--r-md); padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .install-banner .txt { flex: 1; font-size: 12.5px; line-height: 1.4; color: var(--ink); }
+  .install-banner button {
+    border: none; background: var(--brand); color: var(--brand-ink); font-weight: 700; font-size: 12.5px;
+    padding: 8px 12px; border-radius: var(--r-pill); cursor: pointer; white-space: nowrap;
+  }
+  .install-banner .close { background: none; color: var(--ink-faint); font-size: 16px; padding: 0 2px; }
+
+  /* ---------- overlay sheets ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; background: rgba(30, 18, 10, 0.4);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .overlay.center { align-items: center; padding: 20px; }
+  .sheet {
+    background: var(--cream); width: 100%; max-width: 480px; max-height: 92vh;
+    border-radius: 28px 28px 0 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    animation: slideUp .22s ease-out;
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  .overlay.center .sheet { border-radius: var(--r-lg); max-height: 80vh; animation: popIn .18s ease-out; }
+  @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes popIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .sheet-handle { width: 40px; height: 4px; background: var(--line); border-radius: 4px; margin: 10px auto; }
+  .sheet-head {
+    display: flex; align-items: center; justify-content: space-between; padding: 4px 18px 12px;
+  }
+  .sheet-head h2 { font-family: 'Baloo 2', sans-serif; font-size: 19px; margin: 0; }
+  .sheet-body { padding: 0 18px 24px; }
+
+  /* ---------- choice buttons (add flow) ---------- */
+  .choice-btn {
+    width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+    background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-md);
+    padding: 16px; margin-bottom: 12px; cursor: pointer; font-family: inherit;
+  }
+  .choice-btn .emoji { font-size: 28px; }
+  .choice-btn .lbl { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 16px; color: var(--ink); }
+  .choice-btn .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .choice-btn:active { transform: scale(0.98); }
+  .choice-tip { font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); margin: 4px 2px 0; }
+
+  .review-banner {
+    display: flex; align-items: center; gap: 10px; background: var(--mustard-soft); border-radius: var(--r-md);
+    padding: 10px 10px 10px 14px; margin-bottom: 16px; font-size: 12.5px; line-height: 1.45; color: var(--ink);
+  }
+  .review-banner span { flex: 1; }
+  .review-banner button {
+    flex: none; border: none; background: var(--card); color: var(--ink); font-weight: 700; font-size: 12.5px;
+    padding: 8px 12px; border-radius: var(--r-pill); cursor: pointer; font-family: inherit;
+  }
+
+  /* ---------- forms ---------- */
+  label.field-label {
+    display: block; font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.4px; margin: 18px 0 8px;
+  }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: var(--r-sm); padding: 11px 13px; font-family: inherit; font-size: 15px;
+    outline: none;
+  }
+  input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus { border-color: var(--brand); }
+  textarea { resize: vertical; min-height: 46px; }
+  .title-input {
+    font-family: 'Baloo 2', sans-serif; font-size: 20px; font-weight: 700; padding: 12px 14px;
+  }
+  .photo-picker {
+    width: 100%; aspect-ratio: 16/9; border-radius: var(--r-md); border: 2px dashed var(--line);
+    background: var(--cream-2); display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 6px; color: var(--ink-soft); cursor: pointer; overflow: hidden;
+    font-size: 13px; text-align: center; padding: 10px;
+  }
+  .photo-picker img { width: 100%; height: 100%; object-fit: cover; }
+  .tag-picker-group { margin-bottom: 10px; }
+  .tag-picker-group h4 { font-size: 11.5px; color: var(--ink-faint); text-transform: uppercase; margin: 0 0 6px; letter-spacing: .4px; }
+  .tag-picker { display: flex; flex-wrap: wrap; gap: 7px; }
+
+  .ing-row, .step-row { display: flex; gap: 7px; align-items: flex-start; margin-bottom: 8px; }
+  .ing-row input.amt { width: 62px; flex: none; }
+  .ing-row input.unit { width: 82px; flex: none; }
+  .ing-row input.name { flex: 1; min-width: 0; }
+  .step-row .step-num {
+    font-family: 'Space Mono', monospace; font-weight: 700; color: var(--brand);
+    width: 24px; flex: none; text-align: center; padding-top: 10px; font-size: 14px;
+  }
+  .step-row textarea { flex: 1; min-width: 0; }
+  .row-remove {
+    flex: none; width: 34px; height: 40px; border: none; background: none; color: var(--ink-faint);
+    font-size: 18px; cursor: pointer;
+  }
+  .add-row-btn {
+    display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px dashed var(--line);
+    color: var(--brand); font-weight: 700; font-size: 13.5px; padding: 9px 14px; border-radius: var(--r-pill);
+    cursor: pointer; margin-top: 2px;
+  }
+  .servings-input-row { display: flex; align-items: center; gap: 10px; }
+  .servings-input-row input { width: 80px; }
+
+  .raw-text-toggle {
+    font-size: 12.5px; color: var(--ink-soft); text-decoration: underline; cursor: pointer;
+    background: none; border: none; padding: 0; margin-top: 4px; font-family: inherit;
+  }
+  .raw-text-box {
+    margin-top: 8px; font-size: 12.5px; color: var(--ink-soft); background: var(--cream-2);
+    border-radius: var(--r-sm); padding: 10px; white-space: pre-wrap; max-height: 160px; overflow-y: auto;
+  }
+  .notice {
+    background: var(--mustard-soft); color: var(--ink); border-radius: var(--r-sm); padding: 10px 12px;
+    font-size: 12.5px; line-height: 1.5; margin-bottom: 4px;
+  }
+
+  .form-actions { display: flex; gap: 10px; margin-top: 22px; }
+  .btn {
+    flex: 1; border: none; border-radius: var(--r-pill); padding: 14px; font-weight: 700;
+    font-size: 15px; cursor: pointer; font-family: inherit;
+  }
+  .btn.primary { background: var(--brand); color: var(--brand-ink); }
+  .btn.ghost { background: var(--card); color: var(--ink-soft); border: 1.5px solid var(--line); }
+  .btn.danger { background: var(--rose-soft); color: var(--rose-text); }
+  .btn:active { transform: scale(0.97); }
+  .btn.block { width: 100%; margin-bottom: 10px; }
+
+  /* ---------- extraction progress ---------- */
+  .progress-wrap { text-align: center; padding: 30px 10px; }
+  .progress-wrap .logo-mark { width: 110px; margin: 0 auto 14px; animation: bob 1.4s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-8px);} }
+  .progress-bar-track { height: 10px; border-radius: 10px; background: var(--line); overflow: hidden; margin: 14px 0 8px; }
+  .progress-bar-fill { height: 100%; background: var(--brand); border-radius: 10px; width: 0%; transition: width .2s; }
+  .progress-label { font-size: 13px; color: var(--ink-soft); }
+
+  /* ---------- recipe detail ---------- */
+  .detail-photo { width: 100%; aspect-ratio: 16/10; object-fit: cover; background: var(--cream-2); }
+  .detail-body { padding: 18px; }
+  .detail-title { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 25px; margin: 0 0 8px; }
+  .detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .servings-stepper {
+    display: flex; align-items: center; gap: 14px; background: var(--card); border: 1.5px solid var(--line);
+    border-radius: var(--r-pill); padding: 8px 8px 8px 16px; width: fit-content; margin-bottom: 20px;
+  }
+  .servings-stepper .lbl { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+  .stepper-btn {
+    width: 34px; height: 34px; border-radius: var(--r-pill); border: none; background: var(--brand-soft);
+    color: var(--brand); font-size: 18px; font-weight: 700; cursor: pointer;
+  }
+  .stepper-val { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 16px; min-width: 20px; text-align: center; }
+  .detail-section h3 {
+    font-family: 'Baloo 2', sans-serif; font-size: 16.5px; margin: 0 0 10px; color: var(--ink);
+  }
+  .ing-list { list-style: none; margin: 0 0 24px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .ing-list li {
+    display: flex; gap: 10px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .ing-list li.checked { opacity: 0.4; text-decoration: line-through; }
+  .ing-list .qty { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--brand); min-width: 62px; flex: none; font-size: 13.5px; }
+  .ing-list .nm { font-size: 14.5px; }
+  .steps-list { list-style: none; margin: 0 0 20px; padding: 0; counter-reset: step; display: flex; flex-direction: column; gap: 14px; }
+  .steps-list li { display: flex; gap: 12px; }
+  .steps-list .num {
+    font-family: 'Baloo 2', sans-serif; font-weight: 800; color: var(--brand-ink); background: var(--brand);
+    width: 26px; height: 26px; border-radius: var(--r-pill); display: flex; align-items: center; justify-content: center;
+    flex: none; font-size: 13px; margin-top: 1px;
+  }
+  .steps-list p { margin: 2px 0 0; font-size: 14.5px; line-height: 1.55; }
+  .detail-notes { background: var(--mustard-soft); border-radius: var(--r-md); padding: 12px 14px; font-size: 13.5px; line-height: 1.5; margin-bottom: 20px; white-space: pre-line; }
+  .detail-actions { display: flex; gap: 10px; }
+
+  /* ---------- toast ---------- */
+  .toast {
+    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 80;
+    background: var(--ink); color: var(--cream); padding: 11px 18px; border-radius: var(--r-pill);
+    font-size: 13.5px; font-weight: 600; box-shadow: 0 6px 16px var(--shadow);
+    animation: toastIn .2s ease-out;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px);} to { opacity: 1; transform: translate(-50%, 0);} }
+
+  @media (min-width: 560px) {
+    main.grid { grid-template-columns: 1fr 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="logo-wordmark" role="img" aria-label="Njam"></div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="btn-search" aria-label="Zoeken" title="Zoeken">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-settings" aria-label="Instellingen" title="Instellingen">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h3M13 17h7"/><circle cx="16" cy="7" r="2.5"/><circle cx="10" cy="17" r="2.5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="search-wrap" id="search-wrap" hidden>
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true" style="color:var(--ink-soft);flex:none;"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>
+      <input type="text" id="search-input" placeholder="Zoek op naam of ingrediënt...">
+    </div>
+  </div>
+
+  <div class="chip-row" id="tag-filter-row"></div>
+
+  <div id="install-banner-slot"></div>
+
+  <main class="grid" id="recipe-grid"></main>
+  <div class="empty-state" id="empty-state" hidden>
+    <div class="logo-mark" aria-hidden="true"></div>
+    <h2>Nog geen recepten</h2>
+    <p>Voeg je eerste recept toe — vanaf een foto, document, of gewoon met de hand.</p>
+    <button class="btn primary" id="empty-add-btn" style="width:auto; padding:13px 24px;">+ Recept toevoegen</button>
+    <p class="empty-import">Heb je al een back-up? <button type="button" class="link-btn" id="empty-import-btn">Importeer je recepten</button></p>
+  </div>
+</div>
+
+<button class="fab" id="fab-add" aria-label="Recept toevoegen">+</button>
+
+<input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+<input type="file" id="file-input" accept="image/*,application/pdf" hidden>
+<input type="file" id="backup-import-input" accept=".json,application/json" hidden>
+
+<div id="overlay-root"></div>
+<div id="toast-root"></div>
+
+<script>
+"use strict";
+
+/* ========================= data / constants ========================= */
+
+const TAG_GROUPS = [
+  { label: 'Gang', tags: [
+    ['Voorgerecht','🥗','cocoa'], ['Hoofdgerecht','🍽️','cocoa'], ['Nagerecht','🍰','rose'],
+    ['Soep','🍲','mustard'], ['Salade','🥬','sage'], ['Bijgerecht','🥔','mustard'],
+  ]},
+  { label: 'Type', tags: [
+    ['Pasta','🍝','cocoa'], ['Ontbijt','🥞','mustard'], ['Brunch','🍳','mustard'],
+    ['Snack','🍿','rose'], ['Drank','🥤','slate'], ['Bakken','🧁','rose'], ['Saus','🥣','mustard'],
+  ]},
+  { label: 'Dieet', tags: [
+    ['Vegetarisch','🌱','sage'], ['Vegan','🌿','sage'], ['Glutenvrij','🌾','slate'], ['Lactosevrij','🥛','slate'],
+  ]},
+  { label: 'Overig', tags: [
+    ['Snel','⚡','mustard'], ['Feest','🎉','rose'], ['Comfort food','🛋️','cocoa'], ['Kids','🧒','sage'],
+  ]},
+];
+const TAG_INFO = {};
+TAG_GROUPS.forEach(g => g.tags.forEach(([name, emoji, color]) => { TAG_INFO[name] = { emoji, color }; }));
+const ALL_TAG_NAMES = Object.keys(TAG_INFO);
+
+const UNIT_SUGGESTIONS = ['g','kg','ml','l','el','tl','stuk','stuks','snufje','teentje','blaadje','plakje','bakje','pot','blik','scheutje'];
+
+/* ========================= storage (IndexedDB) ========================= */
+
+// storage keys keep the app's original name: renaming them would orphan every recipe already saved
+const DB_NAME = 'receptjes-db', DB_VERSION = 1, STORE = 'recipes';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbGetAll() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbPut(recipe) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(recipe);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function dbDelete(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* ========================= state ========================= */
+
+const state = {
+  recipes: [],
+  filterTags: new Set(),
+  searchQuery: '',
+};
+
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+
+/* ========================= amount parsing / scaling ========================= */
+
+const FRACTION_GLYPHS = { '½': 1 / 2, '¼': 1 / 4, '¾': 3 / 4, '⅓': 1 / 3, '⅔': 2 / 3, '⅛': 1 / 8 };
+
+function parseAmount(str) {
+  if (str == null) return null;
+  str = String(str).trim().replace(',', '.');
+  if (!str) return null;
+  let total = 0;
+  const glyph = str.match(/[½¼¾⅓⅔⅛]/);
+  if (glyph) {
+    total = FRACTION_GLYPHS[glyph[0]];
+    str = str.replace(glyph[0], '').trim();
+    if (!str) return total;
+  }
+  const mixed = str.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) return +mixed[3] ? total + +mixed[1] + mixed[2] / mixed[3] : null;
+  const frac = str.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) return +frac[2] ? total + frac[1] / frac[2] : null;
+  const n = parseFloat(str);
+  return isNaN(n) ? (total || null) : total + n;
+}
+
+const FRACTIONS = [
+  [0.125, '⅛'], [0.1667, '⅙'], [0.2, '⅕'], [0.25, '¼'], [0.3333, '⅓'], [0.375, '⅜'],
+  [0.4, '⅖'], [0.5, '½'], [0.6, '⅗'], [0.625, '⅝'], [0.6667, '⅔'], [0.75, '¾'],
+  [0.8, '⅘'], [0.8333, '⅚'], [0.875, '⅞'],
+];
+function formatAmount(n) {
+  if (n == null || isNaN(n)) return '';
+  const whole = Math.floor(n + 1e-9);
+  const frac = n - whole;
+  if (frac < 0.03) return String(whole);
+  let best = null, bestDiff = 0.025;
+  for (const [val, sym] of FRACTIONS) {
+    const diff = Math.abs(frac - val);
+    if (diff < bestDiff) { best = sym; bestDiff = diff; }
+  }
+  if (best) return (whole ? whole + ' ' : '') + best;
+  return (Math.round(n * 10) / 10).toString().replace('.', ',');
+}
+
+/* ========================= turning recognised text into a recipe ========================= */
+
+const ING_HEADING_RE = /^(ingredi[eë]nten|benodigdheden|wat heb je nodig|wat je nodig hebt|je hebt nodig|dit heb je nodig|boodschappen(lijst)?|nodig)\b/i;
+const STEP_HEADING_RE = /^(bereiding(swijze)?|werkwijze|zo maak je (het|dit|ze)|aan de slag|instructies|methode|stappen|stap voor stap|aanpak)\b/i;
+const SERVINGS_LINE_RE = /^(voor\s+)?\d+\s*(personen|persoon|pers\b|porties?)/i;
+const META_RE = /^(voor\s+\d+\s*(personen|persoon|pers\b|porties?)|\d+\s*(personen|persoon|pers\b|porties?)|(bereidings|kook|oven|wacht|voorbereidings|rijs|koel|totale\s)?tijd\b|moeilijkheid|niveau|\d+\s*kcal|kcal|calorie[eë]n)/i;
+const CHAPTER_RE = /^(voorgerechten|hoofdgerechten|nagerechten|desserts?|soepen|salades|bijgerechten|ontbijt|lunch|diner|snacks|sauzen|gebak|dranken|inhoud|index)$/i;
+
+const QTY_SRC = '(\\d+\\s+\\d+\\s*\\/\\s*\\d+|\\d+\\s*\\/\\s*\\d+|\\d+(?:[.,]\\d+)?(?:\\s*[½¼¾⅓⅔⅛])?|[½¼¾⅓⅔⅛])';
+const UNIT_SRC = 'kg|kilo|gram|gr|g|mg|ml|cl|dl|liter|l|eetlepels?|eetl|el|theelepels?|theel|tl|koffielepels?|kl|kopjes?|kop|bekers?|glazen|glas|snufjes?|snuf|mespuntjes?|mespunt|scheutjes?|scheut|teentjes?|tenen|teen|takjes?|blaadjes?|plakjes?|plakken|plak|stukjes?|stuks?|bosjes?|bos|zakjes?|pakjes?|pak|potjes?|pot|blikjes?|blik|bakjes?|doosjes?|doos|rollen|rol|handjes?|handvol|cm|druppels?|flesjes?|fles';
+// the (?!\p{L}) after a unit stops "1 limoen" from being read as 1 l "imoen"
+const ING_LINE_RE = new RegExp('^' + QTY_SRC + '\\s*(?:(' + UNIT_SRC + ')(?!\\p{L})\\.?)?\\s*(.*)$', 'iu');
+const UNIT_ONLY_RE = new RegExp('^(' + UNIT_SRC + ')(?!\\p{L})\\.?\\s*(.*)$', 'iu');
+const NUMBER_WORDS = { 'een halve': 0.5, 'anderhalve': 1.5, 'anderhalf': 1.5, 'halve': 0.5, 'half': 0.5, 'een': 1, 'één': 1, 'twee': 2, 'drie': 3, 'vier': 4, 'vijf': 5, 'zes': 6, 'zeven': 7, 'acht': 8, 'negen': 9, 'tien': 10 };
+const NUMBER_WORD_RE = /^(een halve|anderhalve|anderhalf|halve|half|een|één|twee|drie|vier|vijf|zes|zeven|acht|negen|tien)\s+(?!beetje|paar|klein beetje)(.+)$/i;
+const RANGE_RE = /^\d+([.,]\d+)?\s*(-|–|à|a|tot)\s*\d+/i;
+const MEAT_FISH_RE = /\b(vlees|gehakt|kip|spek|ham|worst|rund|varken|lam|kalf|vis|zalm|tonijn|scampi|garna|mossel|kabeljauw|bacon|chorizo|salami|ansjovis|kalkoen|eend|konijn|biefstuk|steak|gelatine|pancetta|prosciutto)/i;
+
+const letterCount = s => (s.match(/\p{L}/gu) || []).length;
+const normalizeLine = s => s.toLowerCase().replace(/\s+/g, ' ').trim();
+
+function cleanOcrLine(s) {
+  return s.replace(/\s+/g, ' ')
+    .replace(/^[\s•·*►▪■□●○◦‣⁃»«°~|_=]+/, '')
+    .replace(/^[-–—](?=\s)/, '')
+    .replace(/[\s|_~]+$/, '')
+    .trim();
+}
+
+function startsWithQuantity(s) {
+  return /^(\d|[½¼¾⅓⅔⅛])/.test(s) || (NUMBER_WORD_RE.test(s) && s.length <= 40 && !/[.!?]$/.test(s));
+}
+
+function joinWrapped(lines) {
+  return lines.reduce((acc, line) => {
+    if (!acc) return line;
+    // re-join words the book hyphenated across a line break ("toe-" + "voegen"), but keep "groente- of fruitsap"
+    if (/\p{L}-$/u.test(acc) && /^\p{Ll}/u.test(line) && !/^(of|en|tot)\b/.test(line)) return acc.slice(0, -1) + line;
+    return acc + ' ' + line;
+  }, '');
+}
+
+function isProse(text) { return text.length >= 60 && /[.!?](\s|$)/.test(text); }
+function isStepNumberStart(line) { return /^(?:[Ss]tap\s*)?\d{1,2}\s*[.)]\s+\p{Lu}/u.test(line) || /^[Ss]tap\s*\d/.test(line); }
+function isSubHeading(line) { return !startsWithQuantity(line) && line.length <= 40 && (/:$/.test(line) || /^voor (de|het|een) /i.test(line)); }
+
+function splitSteps(text) {
+  return text
+    .split(/(?:^|\s)(?:[Ss]tap\s*)?\d{1,2}\s*[.)]\s+(?=\p{Lu})/u)
+    .map(s => s.replace(/^(?:[Ss]tap\s*)?\d{1,2}\s+(?=\p{Lu})/u, '').trim())
+    .filter(s => letterCount(s) >= 3);
+}
+
+function splitIngredientLine(line) {
+  const parts = line.split(/,\s+/);
+  const lineHasQty = startsWithQuantity(parts[0]);
+  const clauses = [];
+  for (const part of parts) {
+    // "2 uien, 1 teentje look" and "zout, peper" are separate items; "1 ui, gesnipperd" is one item
+    if (!clauses.length || startsWithQuantity(part) || (!lineHasQty && part.length <= 25)) clauses.push(part);
+    else clauses[clauses.length - 1] += ', ' + part;
+  }
+  return clauses;
+}
+
+function parseIngredientClause(text) {
+  text = text.trim();
+  if (RANGE_RE.test(text)) return { amount: null, unit: '', name: text };
+  const m = text.match(ING_LINE_RE);
+  if (m && m[3]) {
+    const name = m[3].trim();
+    // in many typefaces "1 l" is indistinguishable from "11" — nobody means 11 of a liquid without a unit
+    if (m[1] === '11' && !m[2] && /bouillon|melk|water|room|wijn|sap|bier|fond|passata/i.test(name)) return { amount: 1, unit: 'l', name };
+    return { amount: parseAmount(m[1]), unit: (m[2] || '').toLowerCase(), name };
+  }
+  const w = text.match(NUMBER_WORD_RE);
+  if (w) {
+    const u = w[2].match(UNIT_ONLY_RE);
+    if (u && u[2]) return { amount: NUMBER_WORDS[w[1].toLowerCase()], unit: u[1].toLowerCase(), name: u[2].trim() };
+    return { amount: NUMBER_WORDS[w[1].toLowerCase()], unit: '', name: w[2].trim() };
+  }
+  return { amount: null, unit: '', name: text };
+}
+
+function findServings(lines) {
+  for (const l of lines) {
+    if (l.length > 80) continue;
+    const m = l.match(/(?:voor\s+)?(\d{1,2})\s*(?:personen|persoon|pers\b|porties?|p\b)/i) || l.match(/(?:personen|porties?)\s*:?\s*(\d{1,2})\b/i);
+    if (m && +m[1] >= 1 && +m[1] <= 24) return +m[1];
+  }
+  return null;
+}
+
+function findMinutes(lines) {
+  let total = 0;
+  for (const l of lines) {
+    if (!/tijd/i.test(l) || l.length > 80) continue;
+    const h = l.match(/(\d+)\s*(u|uur)\b/i);
+    const m = l.match(/(\d+)\s*(min|minuten)\b/i);
+    total += (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0);
+  }
+  return total || null;
+}
+
+function tidyTitle(t) {
+  t = t.replace(/[:;,\-–]+$/, '').trim();
+  const letters = t.match(/\p{L}/gu) || [];
+  const upper = letters.filter(c => c === c.toUpperCase() && c !== c.toLowerCase()).length;
+  if (letters.length > 3 && upper / letters.length > 0.8) t = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+  return t;
+}
+
+function guessTags(title, ingredients, minutes) {
+  const t = title.toLowerCase();
+  const ing = ingredients.map(i => i.name.toLowerCase()).join(' | ');
+  const savoury = /\b(ui|uien|sjalot|knoflook|look|bouillon|peper)\b/.test(ing);
+  let course = null;
+  if (/soep|velout|potage|gazpacho|bouillabaisse|minestrone|chowder/.test(t)) course = 'Soep';
+  else if (/salade|slaatje/.test(t)) course = 'Salade';
+  else if (/saus|dressing|pesto|mayonaise|vinaigrette/.test(t)) course = 'Saus';
+  else if (/ontbijt|pannenkoek|granola|muesli|porridge|havermout|omelet|wentelteef|pancake/.test(t)) course = 'Ontbijt';
+  else if (/smoothie|cocktail|limonade|milkshake|sangria|punch|ijsthee|mocktail/.test(t)) course = 'Drank';
+  else if (/taart|cake|mousse|tiramisu|crumble|pudding|\bijs\b|dessert|brownie|koek|muffin|cheesecake|panna cotta|brûlée|parfait|sorbet|clafoutis|trifle|bavarois|wafel|cupcake|flan|soufflé/.test(t)
+    || (/suiker/.test(ing) && /chocolade|vanille|slagroom|mascarpone|bloemsuiker/.test(ing) && !savoury)) course = 'Nagerecht';
+  else if (/voorgerecht|carpaccio|tapas|bruschetta|amuse|tartaar/.test(t)) course = 'Voorgerecht';
+  else if (/hapje|borrel|snack|bitterbal|kroket|nacho/.test(t)) course = 'Snack';
+
+  const pasta = /pasta|spaghetti|penne|tagliatelle|lasagne|macaroni|fusilli|linguine|farfalle|ravioli|tortellini|gnocchi|orzo|rigatoni|pappardelle/.test(t + ' ' + ing);
+  const baking = /taart|cake|brood|koek|muffin|brownie|cupcake|scones|focaccia|quiche|wafel|cookie/.test(t) || (/bloem/.test(ing) && /bakpoeder|gist|zelfrijzend/.test(ing));
+  if (!course && !baking && ingredients.length >= 3) course = 'Hoofdgerecht';
+
+  const tags = [];
+  if (course) tags.push(course);
+  if (pasta) tags.push('Pasta');
+  if (baking) tags.push('Bakken');
+  if (/vegan/.test(t)) tags.push('Vegan');
+  else if (/vegetarisch|veggie/.test(t) || (['Hoofdgerecht', 'Soep', 'Salade', 'Voorgerecht'].includes(course) && ingredients.length >= 4 && !MEAT_FISH_RE.test(ing))) tags.push('Vegetarisch');
+  if (minutes && minutes <= 30) tags.push('Snel');
+  return tags.slice(0, 3);
+}
+
+function parseRecipeLayout({ paragraphs, titleHint }) {
+  const paras = paragraphs
+    .map(p => p.map(cleanOcrLine).filter(l => letterCount(l) >= 2))
+    .filter(p => p.length);
+  const allLines = paras.flat();
+  const servings = findServings(allLines);
+  const minutes = findMinutes(allLines);
+
+  const titleOk = l => l.length >= 3 && l.length <= 70 && letterCount(l) >= 3 && !ING_HEADING_RE.test(l) && !STEP_HEADING_RE.test(l)
+    && !META_RE.test(l) && !CHAPTER_RE.test(l) && !startsWithQuantity(l) && !/[.!?]$/.test(l);
+  let titleLines = (titleHint || []).map(cleanOcrLine).filter(Boolean);
+  if (!titleLines.length || !titleOk(titleLines[0])) {
+    const first = allLines.find(titleOk);
+    titleLines = first ? [first] : [];
+  }
+  const pendingTitle = titleLines.map(normalizeLine);
+
+  const ingredients = [], steps = [], notes = [], intro = [];
+  let state = 'pre';
+
+  const pushSteps = lines => { for (const s of splitSteps(joinWrapped(lines))) steps.push(s); };
+  const pushIngredient = (line, prev) => {
+    line = line.replace(/^[lI](?=\s+\p{L})/u, '1'); // OCR often reads a leading "1" as l or I
+    if (isSubHeading(line)) { ingredients.push({ amount: null, unit: '', name: '— ' + line.replace(/:$/, '').trim() + ' —' }); return; }
+    const last = ingredients[ingredients.length - 1];
+    if (last && prev && !startsWithQuantity(line) && /^\p{Ll}/u.test(line) && prev.length >= 28 && !/[,;:]$/.test(prev) && !last.name.startsWith('—')) {
+      last.name = joinWrapped([last.name, line]);
+      return;
+    }
+    for (const clause of splitIngredientLine(line)) ingredients.push(parseIngredientClause(clause));
+  };
+
+  const handleBlock = lines => {
+    let introBuf = [];
+    const flushIntro = () => { if (introBuf.length) intro.push(joinWrapped(introBuf)); introBuf = []; };
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (state === 'steps') { flushIntro(); pushSteps(lines.slice(i)); return; }
+      const proseAhead = !startsWithQuantity(line) && line.length >= 30 && isProse(joinWrapped(lines.slice(i)));
+      if (state === 'ing') {
+        if (isStepNumberStart(line) || proseAhead) { state = 'steps'; pushSteps(lines.slice(i)); return; }
+        pushIngredient(line, lines[i - 1]);
+        continue;
+      }
+      if (isStepNumberStart(line)) { flushIntro(); state = 'steps'; pushSteps(lines.slice(i)); return; }
+      const nextHasQty = i + 1 < lines.length && startsWithQuantity(lines[i + 1]);
+      if ((startsWithQuantity(line) && line.length <= 70 && !/[.!?]$/.test(line)) || (isSubHeading(line) && nextHasQty)) {
+        flushIntro(); state = 'ing'; pushIngredient(line, lines[i - 1]);
+        continue;
+      }
+      introBuf.push(line);
+    }
+    flushIntro();
+  };
+
+  for (const para of paras) {
+    let block = [];
+    const flush = () => { if (block.length) handleBlock(block); block = []; };
+    for (const line of para) {
+      const ti = pendingTitle.indexOf(normalizeLine(line));
+      if (ti > -1) { pendingTitle.splice(ti, 1); continue; }
+      if (CHAPTER_RE.test(line.replace(/[^\p{L}\s]/gu, '').trim())) continue;
+      if (META_RE.test(line)) { flush(); if (!SERVINGS_LINE_RE.test(line) || /tijd/i.test(line)) notes.push(line); continue; }
+      if (ING_HEADING_RE.test(line) && line.length <= 50 && !startsWithQuantity(line)) { flush(); state = 'ing'; continue; }
+      if (STEP_HEADING_RE.test(line) && line.length <= 40) { flush(); state = 'steps'; continue; }
+      block.push(line);
+    }
+    flush();
+  }
+
+  // no steps recognised (e.g. steps were printed before the ingredients): the prose is most likely the method
+  if (!steps.length && intro.length) { intro.forEach(p => steps.push(...splitSteps(p))); intro.length = 0; }
+
+  const title = tidyTitle(joinWrapped(titleLines));
+  return {
+    title,
+    servings,
+    ingredients: ingredients.filter(i => i.name),
+    steps,
+    notes: [...notes, ...intro].join('\n'),
+    tags: guessTags(title, ingredients, minutes),
+  };
+}
+
+/* ========================= dynamic script loading (OCR / PDF, on demand) ========================= */
+
+const loadedScripts = new Set();
+function loadScript(src) {
+  if (loadedScripts.has(src)) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => { loadedScripts.add(src); resolve(); };
+    s.onerror = () => reject(new Error('Kon ' + src + ' niet laden — controleer je internetverbinding.'));
+    document.head.appendChild(s);
+  });
+}
+
+function resizeImageDataUrl(img, maxDim) {
+  let { width, height } = img;
+  if (width > maxDim || height > maxDim) {
+    const scale = maxDim / Math.max(width, height);
+    width = Math.round(width * scale); height = Math.round(height * scale);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+  return canvas;
+}
+
+const TESSERACT_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+// 3.x is the last pdf.js line with a classic (non-module) build that loadScript can use
+const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Kon deze foto niet openen.')); };
+    img.src = url;
+  });
+}
+
+// Evens out shadows and uneven light (hand over the page, the curve near the spine) by dividing every
+// pixel by the local paper brightness. The gain is capped so a dark photo or coloured banner is lifted,
+// not blown out to white along with any light text printed on it.
+function preprocessForOcr(source) {
+  const canvas = resizeImageDataUrl(source, 2400);
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const image = ctx.getImageData(0, 0, w, h);
+  const d = image.data;
+  const gray = new Uint8Array(w * h);
+  for (let i = 0, p = 0; p < gray.length; i += 4, p++) gray[p] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+
+  const T = Math.max(24, Math.round(Math.max(w, h) / 50));
+  const tw = Math.ceil(w / T), th = Math.ceil(h / T);
+  const paper = new Float32Array(tw * th);
+  const hist = new Uint32Array(256);
+  for (let ty = 0; ty < th; ty++) {
+    for (let tx = 0; tx < tw; tx++) {
+      hist.fill(0);
+      let n = 0;
+      for (let y = ty * T; y < Math.min(h, ty * T + T); y++) {
+        for (let x = tx * T; x < Math.min(w, tx * T + T); x++) { hist[gray[y * w + x]]++; n++; }
+      }
+      let v = 255;
+      for (let acc = 0; v > 0 && (acc += hist[v]) < n * 0.1; v--);
+      paper[ty * tw + tx] = v;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    const fy = Math.min(th - 1, Math.max(0, (y + 0.5) / T - 0.5));
+    const y0 = Math.floor(fy), y1 = Math.min(th - 1, y0 + 1), wy = fy - y0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.min(tw - 1, Math.max(0, (x + 0.5) / T - 0.5));
+      const x0 = Math.floor(fx), x1 = Math.min(tw - 1, x0 + 1), wx = fx - x0;
+      const bg = (paper[y0 * tw + x0] * (1 - wx) + paper[y0 * tw + x1] * wx) * (1 - wy)
+               + (paper[y1 * tw + x0] * (1 - wx) + paper[y1 * tw + x1] * wx) * wy;
+      const g = gray[y * w + x];
+      const v = g * Math.min(245 / Math.max(bg, 1), 3);
+      const i = (y * w + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = v;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
+const OCR_STAGES = {
+  'loading tesseract core': 'Tekstherkenning laden...',
+  'initializing tesseract': 'Tekstherkenning opstarten...',
+  'loading language traineddata': 'Nederlandse woordenlijst laden...',
+  'initializing api': 'Bijna klaar met opstarten...',
+  'recognizing text': 'Recept lezen...',
+};
+
+async function runOcr(canvas, onProgress, from, to) {
+  await loadScript(TESSERACT_SRC);
+  const span = to - from;
+  const worker = await window.Tesseract.createWorker('nld', 1, {
+    logger: m => {
+      const label = OCR_STAGES[String(m.status).replace(/ \(from cache\)$/, '')];
+      if (!label) return;
+      const pct = m.status === 'recognizing text' ? from + span * (0.2 + 0.8 * m.progress) : from + span * 0.2 * (m.progress || 0);
+      onProgress({ status: label, pct });
+    },
+  });
+  try {
+    // Sparse-text mode reads every text fragment on its own. The default page mode glues an ingredient
+    // column to the method column beside it and can drop big titles; reading order is rebuilt in layoutFromOcr.
+    await worker.setParameters({ tessedit_pageseg_mode: '11' });
+    const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
+    return data;
+  } finally {
+    await worker.terminate();
+  }
+}
+
+// The tallest text on a cookbook page is almost always the recipe name; a wrapped title continues
+// on the next line(s) of the same paragraph at a similar size.
+function pickTitleLines(lines) {
+  if (!lines.length) return null;
+  const heights = lines.map(l => l.height).sort((a, b) => a - b);
+  const median = heights[Math.floor(heights.length / 2)];
+  let best = null;
+  lines.forEach((l, i) => {
+    const t = cleanOcrLine(l.text);
+    if (letterCount(t) < 3 || t.length > 70 || startsWithQuantity(t) || META_RE.test(t) || ING_HEADING_RE.test(t) || STEP_HEADING_RE.test(t)) return;
+    if (CHAPTER_RE.test(t.replace(/[^\p{L}\s]/gu, '').trim())) return;
+    if (l.height < median * 1.3) return;
+    if (!best || l.height > best.height * 1.05) best = { ...l, i };
+  });
+  if (!best) return null;
+  const parts = [best.text];
+  for (let j = best.i + 1; j < lines.length && lines[j].para === best.para && lines[j].height >= best.height * 0.8; j++) parts.push(lines[j].text);
+  return parts;
+}
+
+// Text fragments with their position, split wherever a line has a gap far wider than a word space
+// (two columns read as one line).
+function ocrSegments(data) {
+  const lines = [];
+  for (const block of data.blocks || []) {
+    for (const para of block.paragraphs || []) {
+      for (const line of para.lines || []) {
+        const words = (line.words || []).filter(w => w.text.trim());
+        if (words.length) lines.push(words);
+      }
+    }
+  }
+  const pageW = Math.max(1, ...lines.flat().map(w => w.bbox.x1));
+  const segs = [];
+  for (const words of lines) {
+    const lineH = Math.max(...words.map(w => w.bbox.y1 - w.bbox.y0));
+    let cur = [];
+    const flush = () => {
+      if (!cur.length) return;
+      const s = {
+        text: cur.map(w => w.text.trim()).join(' '),
+        x0: Math.min(...cur.map(w => w.bbox.x0)), x1: Math.max(...cur.map(w => w.bbox.x1)),
+        y0: Math.min(...cur.map(w => w.bbox.y0)), y1: Math.max(...cur.map(w => w.bbox.y1)),
+      };
+      s.h = s.y1 - s.y0;
+      segs.push(s);
+      cur = [];
+    };
+    words.forEach((w, i) => {
+      if (i && w.bbox.x0 - words[i - 1].bbox.x1 > Math.max(2 * lineH, pageW * 0.04)) flush();
+      cur.push(w);
+    });
+    flush();
+  }
+  return segs;
+}
+
+// A gutter is a vertical strip that (almost) no text crosses, with text side by side on both sides of it.
+// A title or intro running across the full width may cross it; those become "wide" fragments.
+function findGutters(segs) {
+  if (segs.length < 6) return [];
+  const minX = Math.min(...segs.map(s => s.x0)), maxX = Math.max(...segs.map(s => s.x1));
+  const B = 100, bw = (maxX - minX) / B || 1;
+  const cover = new Array(B).fill(0);
+  for (const s of segs) {
+    const b0 = Math.max(0, Math.floor((s.x0 - minX) / bw)), b1 = Math.min(B - 1, Math.floor((s.x1 - minX) / bw));
+    for (let b = b0; b <= b1; b++) cover[b]++;
+  }
+  const limit = Math.max(2, Math.floor(segs.length * 0.25));
+  const gutters = [];
+  for (let b = 0; b < B;) {
+    if (cover[b] > limit) { b++; continue; }
+    let e = b;
+    while (e + 1 < B && cover[e + 1] <= limit) e++;
+    const gx0 = minX + b * bw, gx1 = minX + (e + 1) * bw;
+    if (e - b + 1 >= 2) {
+      const left = segs.filter(s => s.x1 <= gx0 + bw), right = segs.filter(s => s.x0 >= gx1 - bw);
+      const sideBySide = left.filter(l => right.some(r => r.y0 < l.y1 && r.y1 > l.y0)).length;
+      if (sideBySide >= 3) gutters.push((gx0 + gx1) / 2);
+    }
+    b = e + 1;
+  }
+  return gutters;
+}
+
+function layoutFromOcr(data) {
+  const segs = ocrSegments(data);
+  if (!segs.length) return layoutFromPlainText((data.text || '').trim());
+  const medianH = segs.map(s => s.h).sort((a, b) => a - b)[Math.floor(segs.length / 2)];
+
+  const gutters = findGutters(segs);
+  for (const s of segs) {
+    s.wide = gutters.some(g => s.x0 < g && s.x1 > g);
+    s.col = s.wide ? -1 : gutters.filter(g => (s.x0 + s.x1) / 2 > g).length;
+  }
+
+  // reading order: full-width fragments split the page into bands; inside a band, column by column, top to bottom
+  const byPosition = (a, b) => (Math.abs(a.y0 - b.y0) > 0.5 * Math.min(a.h, b.h) ? a.y0 - b.y0 : a.x0 - b.x0);
+  const ordered = [];
+  let narrow = segs.filter(s => !s.wide);
+  const takeBand = yLimit => {
+    const band = narrow.filter(s => s.y0 < yLimit);
+    narrow = narrow.filter(s => s.y0 >= yLimit);
+    band.sort((a, b) => a.col - b.col || byPosition(a, b));
+    ordered.push(...band);
+  };
+  for (const w of segs.filter(s => s.wide).sort(byPosition)) { takeBand(w.y0); ordered.push(w); }
+  takeBand(Infinity);
+
+  // glue fragments that sit on the same printed line back together
+  const lines = [];
+  for (const s of ordered) {
+    const prev = lines[lines.length - 1];
+    if (prev && prev.col === s.col && s.x0 > prev.x0 && Math.abs((prev.y0 + prev.y1) - (s.y0 + s.y1)) / 2 < 0.4 * Math.min(prev.h, s.h)) {
+      prev.text += ' ' + s.text;
+      prev.x1 = Math.max(prev.x1, s.x1); prev.y0 = Math.min(prev.y0, s.y0); prev.y1 = Math.max(prev.y1, s.y1); prev.h = prev.y1 - prev.y0;
+    } else {
+      lines.push({ ...s });
+    }
+  }
+
+  // paragraphs: a new one starts at a new column, a bigger vertical gap, or a clear change in text size
+  const paragraphs = [];
+  let para = [];
+  lines.forEach((l, i) => {
+    const prev = lines[i - 1];
+    const sameFlow = prev && (l.col === prev.col || (prev.wide && Math.abs(l.x0 - prev.x0) < medianH));
+    const newPara = !sameFlow || l.y0 < prev.y0 || l.y0 - prev.y1 > 0.65 * medianH
+      || (Math.max(l.h, prev.h) > 1.3 * medianH && Math.abs(l.h - prev.h) > 0.3 * Math.max(l.h, prev.h));
+    if (newPara && para.length) { paragraphs.push(para); para = []; }
+    l.para = paragraphs.length;
+    para.push(l.text);
+  });
+  if (para.length) paragraphs.push(para);
+
+  return {
+    paragraphs,
+    titleHint: pickTitleLines(lines.map(l => ({ text: l.text, height: l.h, para: l.para }))),
+    text: paragraphs.map(p => p.join('\n')).join('\n\n'),
+  };
+}
+
+function layoutFromPlainText(text) {
+  const paragraphs = text.split(/\n\s*\n/).map(p => p.split('\n').map(l => l.trim()).filter(Boolean)).filter(p => p.length);
+  return { paragraphs, titleHint: null, text };
+}
+
+async function layoutFromImage(file, onProgress) {
+  onProgress({ status: 'Foto voorbereiden...', pct: 3 });
+  const img = await loadImageFile(file);
+  const canvas = preprocessForOcr(img);
+  return layoutFromOcr(await runOcr(canvas, onProgress, 8, 96));
+}
+
+async function layoutFromPdf(file, onProgress) {
+  onProgress({ status: 'PDF openen...', pct: 5 });
+  await loadScript(PDFJS_SRC);
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC;
+  const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const pages = Math.min(pdf.numPages, 6);
+  const paragraphs = [], lines = [];
+  for (let p = 1; p <= pages; p++) {
+    onProgress({ status: `Pagina ${p}/${pages} lezen...`, pct: 5 + Math.round((p / pages) * 40) });
+    const page = await pdf.getPage(p);
+    const { items } = await page.getTextContent();
+    let cur = null, prev = null, para = [];
+    const endLine = () => {
+      const text = cur ? cur.text.replace(/\s+/g, ' ').trim() : '';
+      if (text) {
+        // a bigger gap than normal line spacing, a jump back up (next column) or a font-size change starts a new paragraph
+        const gap = prev ? prev.y - cur.y : 0;
+        if (para.length && (gap > Math.max(prev.size, cur.size) * 1.6 || gap < 0 || Math.abs(cur.size - prev.size) > prev.size * 0.25)) {
+          paragraphs.push(para); para = [];
+        }
+        lines.push({ text, height: cur.size, para: paragraphs.length });
+        para.push(text);
+        prev = cur;
+      }
+      cur = null;
+    };
+    for (const it of items) {
+      if (!('str' in it)) continue;
+      if (!cur) cur = { text: '', size: 0, y: it.transform[5] };
+      cur.text += it.str;
+      cur.size = Math.max(cur.size, Math.hypot(it.transform[2], it.transform[3]));
+      if (it.hasEOL) endLine();
+    }
+    endLine();
+    if (para.length) paragraphs.push(para);
+
+    if (p === 1 && letterCount(lines.map(l => l.text).join('')) < 20) {
+      // scanned PDF without a text layer: read page 1 like a photo
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: 2000 / Math.max(base.width, base.height) });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      return layoutFromOcr(await runOcr(preprocessForOcr(canvas), onProgress, 45, 96));
+    }
+  }
+  return { paragraphs, titleHint: pickTitleLines(lines), text: paragraphs.map(p => p.join('\n')).join('\n\n') };
+}
+
+/* ========================= rendering: list view ========================= */
+
+const $grid = document.getElementById('recipe-grid');
+const $empty = document.getElementById('empty-state');
+const $tagRow = document.getElementById('tag-filter-row');
+
+function renderTagFilterRow() {
+  $tagRow.innerHTML = '';
+  ALL_TAG_NAMES.forEach(name => {
+    const info = TAG_INFO[name];
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (state.filterTags.has(name) ? ' active' : '');
+    chip.style.setProperty('--chip-color', `var(--${info.color})`);
+    chip.textContent = `${info.emoji} ${name}`;
+    chip.onclick = () => {
+      if (state.filterTags.has(name)) state.filterTags.delete(name); else state.filterTags.add(name);
+      renderTagFilterRow(); renderGrid();
+    };
+    $tagRow.appendChild(chip);
+  });
+}
+
+function filteredRecipes() {
+  const q = state.searchQuery.trim().toLowerCase();
+  return state.recipes.filter(r => {
+    if (state.filterTags.size) {
+      for (const t of state.filterTags) if (!r.tags.includes(t)) return false;
+    }
+    if (q) {
+      const hay = [r.title, ...(r.ingredients || []).map(i => i.name)].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+function renderGrid() {
+  const list = filteredRecipes();
+  $grid.innerHTML = '';
+  if (!state.recipes.length) {
+    $empty.hidden = false; $grid.hidden = true;
+    return;
+  }
+  $empty.hidden = true; $grid.hidden = false;
+  if (!list.length) {
+    $grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--ink-soft); padding:40px 10px; font-size:14px;">Niets gevonden met dit filter 🤔</div>`;
+    return;
+  }
+  list.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.onclick = () => openDetail(r.id);
+    const photo = r.photoDataUrl ? `<img class="card-photo" src="${r.photoDataUrl}" alt="">` : '';
+    const tagChips = (r.tags || []).slice(0, 3).map(miniTagHtml).join('');
+    card.innerHTML = `${photo}<div class="card-body"><div class="card-title">${escapeHtml(r.title || 'Naamloos recept')}</div><div class="card-tags">${tagChips}</div><div class="card-servings">${r.servingsBase || 4} pers.</div></div>`;
+    $grid.appendChild(card);
+  });
+}
+
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+function miniTagHtml(t) {
+  const info = TAG_INFO[t] || { emoji: '🏷️', color: 'cocoa' };
+  return `<span class="mini-tag" style="--tag-color:var(--${info.color}-text); --tag-color-soft:var(--${info.color}-soft);">${info.emoji} ${escapeHtml(t)}</span>`;
+}
+
+/* ========================= overlay / sheet helpers ========================= */
+
+const $overlayRoot = document.getElementById('overlay-root');
+function closeOverlay() { $overlayRoot.innerHTML = ''; }
+function openSheet(innerHtml, { center = false } = {}) {
+  $overlayRoot.innerHTML = `<div class="overlay ${center ? 'center' : ''}" id="ov"><div class="sheet">${center ? '' : '<div class="sheet-handle"></div>'}${innerHtml}</div></div>`;
+  document.getElementById('ov').addEventListener('click', (e) => { if (e.target.id === 'ov') closeOverlay(); });
+  return document.querySelector('.sheet');
+}
+
+function showToast(msg, ms = 2200) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.getElementById('toast-root').appendChild(el);
+  setTimeout(() => el.remove(), ms);
+}
+
+/* ========================= add-choice flow ========================= */
+
+document.getElementById('fab-add').onclick = openAddChoice;
+document.getElementById('empty-add-btn').onclick = openAddChoice;
+document.getElementById('empty-import-btn').onclick = () => document.getElementById('backup-import-input').click();
+
+function openAddChoice() {
+  openSheet(`
+    <div class="sheet-head"><h2>Nieuw recept</h2><button class="icon-btn" onclick="closeOverlay()">✕</button></div>
+    <div class="sheet-body">
+      <button class="choice-btn" id="choice-camera">
+        <span class="emoji">📸</span>
+        <span><span class="lbl">Foto maken</span><br><span class="sub">Fotografeer een recept uit een kookboek — het komt er automatisch als recept bij.</span></span>
+      </button>
+      <button class="choice-btn" id="choice-file">
+        <span class="emoji">🖼️</span>
+        <span><span class="lbl">Foto of PDF kiezen</span><br><span class="sub">Een foto of document dat al op je toestel staat.</span></span>
+      </button>
+      <button class="choice-btn" id="choice-manual">
+        <span class="emoji">✏️</span>
+        <span><span class="lbl">Handmatig invoeren</span><br><span class="sub">Begin met een leeg recept en vul het zelf in.</span></span>
+      </button>
+      <p class="choice-tip">💡 Tip voor een goede foto: leg het boek plat, zorg voor veel licht en fotografeer recht van boven, met enkel het recept in beeld.</p>
+    </div>
+  `);
+  document.getElementById('choice-camera').onclick = () => { closeOverlay(); document.getElementById('camera-input').click(); };
+  document.getElementById('choice-file').onclick = () => { closeOverlay(); document.getElementById('file-input').click(); };
+  document.getElementById('choice-manual').onclick = () => { closeOverlay(); openRecipeForm(null); };
+}
+
+['camera-input', 'file-input'].forEach(id => {
+  document.getElementById(id).addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (file) await importRecipeFromFile(file);
+  });
+});
+
+async function importRecipeFromFile(file) {
+  openSheet(`
+    <div class="sheet-head"><h2>Recept inlezen</h2></div>
+    <div class="sheet-body">
+      <div class="progress-wrap">
+        <div class="logo-mark" aria-hidden="true"></div>
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="pg-fill"></div></div>
+        <div class="progress-label" id="pg-label">Even geduld...</div>
+      </div>
+    </div>
+  `, { center: true });
+  let shown = 0;
+  const onProgress = ({ status, pct }) => {
+    shown = Math.max(shown, Math.min(100, pct));
+    const fill = document.getElementById('pg-fill');
+    const label = document.getElementById('pg-label');
+    if (fill) fill.style.width = shown + '%';
+    if (label) label.textContent = status;
+  };
+  try {
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    const layout = isPdf ? await layoutFromPdf(file, onProgress) : await layoutFromImage(file, onProgress);
+    onProgress({ status: 'Recept opbouwen...', pct: 98 });
+    const parsed = parseRecipeLayout(layout);
+    if (!parsed.ingredients.length && !parsed.steps.length) {
+      closeOverlay();
+      showToast('🤔 Geen recept gevonden. Probeer opnieuw met meer licht en het boek plat.', 4500);
+      return;
+    }
+    const now = Date.now();
+    const recipe = {
+      id: uid(),
+      title: parsed.title || (isPdf ? 'Recept uit PDF' : 'Recept uit foto'),
+      tags: parsed.tags,
+      servingsBase: parsed.servings || 4,
+      ingredients: parsed.ingredients,
+      steps: parsed.steps,
+      notes: parsed.notes,
+      photoDataUrl: null,
+      rawText: layout.text,
+      needsReview: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await dbPut(recipe);
+    state.recipes.push(recipe);
+    renderGrid();
+    closeOverlay();
+    openDetail(recipe.id);
+    showToast('✅ Recept toegevoegd aan je receptenboek');
+  } catch (err) {
+    closeOverlay();
+    showToast('⚠️ ' + (err.message || 'Inlezen mislukt.'), 4500);
+  }
+}
+
+/* ========================= recipe form ========================= */
+
+function emptyRecipe() {
+  return { id: uid(), title: '', tags: [], servingsBase: 4, ingredients: [{ amount: null, unit: '', name: '' }], steps: [''], notes: '', photoDataUrl: null, rawText: '' };
+}
+
+function openRecipeForm(recipeOrNull, opts = {}) {
+  const isNew = opts.isNew !== undefined ? opts.isNew : !recipeOrNull;
+  const draft = recipeOrNull ? JSON.parse(JSON.stringify(recipeOrNull)) : emptyRecipe();
+
+  const tagGroupsHtml = TAG_GROUPS.map(g => `
+    <div class="tag-picker-group">
+      <h4>${g.label}</h4>
+      <div class="tag-picker">${g.tags.map(([name, emoji, color]) => `
+        <div class="chip tag-opt${draft.tags.includes(name) ? ' active' : ''}" data-tag="${name}" style="--chip-color:var(--${color});">${emoji} ${name}</div>
+      `).join('')}</div>
+    </div>
+  `).join('');
+
+  const sheet = openSheet(`
+    <div class="sheet-head"><h2>${isNew ? 'Nieuw recept' : 'Recept bewerken'}</h2><button class="icon-btn" onclick="closeOverlay()">✕</button></div>
+    <div class="sheet-body">
+      <label class="photo-picker" id="photo-picker">
+        ${draft.photoDataUrl ? `<img src="${draft.photoDataUrl}" alt="">` : `<span style="font-size:28px;">📷</span><span>Foto toevoegen</span>`}
+      </label>
+      <input type="file" id="photo-input" accept="image/*" hidden>
+
+      <label class="field-label">Naam van het recept</label>
+      <input type="text" id="f-title" class="title-input" placeholder="Bv. Romige pastinaaksoep" value="${escapeHtml(draft.title)}">
+
+      <label class="field-label">Labels</label>
+      ${tagGroupsHtml}
+
+      <label class="field-label">Aantal personen (basis)</label>
+      <div class="servings-input-row">
+        <input type="number" id="f-servings" min="1" value="${draft.servingsBase || 4}">
+      </div>
+
+      <label class="field-label">Ingrediënten</label>
+      <div id="ing-rows"></div>
+      <button type="button" class="add-row-btn" id="add-ing">+ Ingrediënt</button>
+
+      <label class="field-label">Bereidingswijze</label>
+      <div id="step-rows"></div>
+      <button type="button" class="add-row-btn" id="add-step">+ Stap</button>
+
+      <label class="field-label">Notities (optioneel)</label>
+      <textarea id="f-notes" placeholder="Tips, variaties, bewaartips...">${escapeHtml(draft.notes || '')}</textarea>
+
+      ${draft.rawText ? `<button type="button" class="raw-text-toggle" id="raw-toggle">Toon originele ingelezen tekst</button><div class="raw-text-box" id="raw-box" hidden>${escapeHtml(draft.rawText)}</div>` : ''}
+
+      <div class="form-actions">
+        <button class="btn ghost" id="cancel-form">Annuleren</button>
+        <button class="btn primary" id="save-form">Opslaan</button>
+      </div>
+      ${!isNew ? `<button class="btn danger block" id="delete-form" style="margin-top:10px;">Recept verwijderen</button>` : ''}
+    </div>
+  `);
+
+  datalistSetup();
+
+  const $ingRows = sheet.querySelector('#ing-rows');
+  const $stepRows = sheet.querySelector('#step-rows');
+
+  function renderIngRows() {
+    $ingRows.innerHTML = '';
+    draft.ingredients.forEach((ing, idx) => {
+      const row = document.createElement('div');
+      row.className = 'ing-row';
+      row.innerHTML = `
+        <input type="text" class="amt" placeholder="hv." value="${ing.amount != null ? ing.amount : ''}">
+        <input type="text" class="unit" placeholder="eenh." list="unit-list" value="${escapeHtml(ing.unit || '')}">
+        <input type="text" class="name" placeholder="ingrediënt" value="${escapeHtml(ing.name || '')}">
+        <button type="button" class="row-remove" data-idx="${idx}">✕</button>
+      `;
+      row.querySelector('.amt').oninput = e => draft.ingredients[idx].amount = e.target.value;
+      row.querySelector('.unit').oninput = e => draft.ingredients[idx].unit = e.target.value;
+      row.querySelector('.name').oninput = e => draft.ingredients[idx].name = e.target.value;
+      row.querySelector('.row-remove').onclick = () => { draft.ingredients.splice(idx, 1); renderIngRows(); };
+      $ingRows.appendChild(row);
+    });
+  }
+  function renderStepRows() {
+    $stepRows.innerHTML = '';
+    draft.steps.forEach((step, idx) => {
+      const row = document.createElement('div');
+      row.className = 'step-row';
+      row.innerHTML = `
+        <div class="step-num">${idx + 1}</div>
+        <textarea rows="2" placeholder="Beschrijf deze stap...">${escapeHtml(step)}</textarea>
+        <button type="button" class="row-remove" data-idx="${idx}">✕</button>
+      `;
+      row.querySelector('textarea').oninput = e => draft.steps[idx] = e.target.value;
+      row.querySelector('.row-remove').onclick = () => { draft.steps.splice(idx, 1); if (!draft.steps.length) draft.steps.push(''); renderStepRows(); };
+      $stepRows.appendChild(row);
+    });
+  }
+  renderIngRows(); renderStepRows();
+
+  sheet.querySelector('#add-ing').onclick = () => { draft.ingredients.push({ amount: null, unit: '', name: '' }); renderIngRows(); };
+  sheet.querySelector('#add-step').onclick = () => { draft.steps.push(''); renderStepRows(); };
+
+  sheet.querySelectorAll('.tag-opt').forEach(el => {
+    el.onclick = () => {
+      const t = el.dataset.tag;
+      if (draft.tags.includes(t)) { draft.tags = draft.tags.filter(x => x !== t); el.classList.remove('active'); }
+      else { draft.tags.push(t); el.classList.add('active'); }
+    };
+  });
+
+  sheet.querySelector('#photo-picker').onclick = () => sheet.querySelector('#photo-input').click();
+  sheet.querySelector('#photo-input').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = dataUrl; });
+    draft.photoDataUrl = resizeImageDataUrl(img, 1000).toDataURL('image/jpeg', 0.85);
+    sheet.querySelector('#photo-picker').innerHTML = `<img src="${draft.photoDataUrl}" alt="">`;
+  };
+
+  const rawToggle = sheet.querySelector('#raw-toggle');
+  if (rawToggle) rawToggle.onclick = () => { const box = sheet.querySelector('#raw-box'); box.hidden = !box.hidden; };
+
+  sheet.querySelector('#cancel-form').onclick = closeOverlay;
+
+  sheet.querySelector('#save-form').onclick = async () => {
+    draft.title = sheet.querySelector('#f-title').value.trim();
+    if (!draft.title) { showToast('Geef je recept een naam 🙂'); return; }
+    draft.servingsBase = Math.max(1, parseInt(sheet.querySelector('#f-servings').value, 10) || 4);
+    draft.notes = sheet.querySelector('#f-notes').value.trim();
+    draft.ingredients = draft.ingredients
+      .map(i => ({ amount: parseAmount(i.amount), unit: (i.unit || '').trim(), name: (i.name || '').trim() }))
+      .filter(i => i.name);
+    draft.steps = draft.steps.map(s => (s || '').trim()).filter(Boolean);
+    delete draft.needsReview;
+    draft.updatedAt = Date.now();
+    if (!draft.createdAt) draft.createdAt = draft.updatedAt;
+    await dbPut(draft);
+    const idx = state.recipes.findIndex(r => r.id === draft.id);
+    if (idx > -1) state.recipes[idx] = draft; else state.recipes.push(draft);
+    closeOverlay();
+    renderGrid();
+    showToast('✅ Recept opgeslagen');
+  };
+
+  const delBtn = sheet.querySelector('#delete-form');
+  if (delBtn) delBtn.onclick = async () => {
+    if (!confirm('Dit recept definitief verwijderen?')) return;
+    await dbDelete(draft.id);
+    state.recipes = state.recipes.filter(r => r.id !== draft.id);
+    closeOverlay();
+    renderGrid();
+    showToast('🗑️ Recept verwijderd');
+  };
+}
+
+function datalistSetup() {
+  if (document.getElementById('unit-list')) return;
+  const dl = document.createElement('datalist');
+  dl.id = 'unit-list';
+  dl.innerHTML = UNIT_SUGGESTIONS.map(u => `<option value="${u}">`).join('');
+  document.body.appendChild(dl);
+}
+
+/* ========================= recipe detail ========================= */
+
+function openDetail(id) {
+  const recipe = state.recipes.find(r => r.id === id);
+  if (!recipe) return;
+  let servings = recipe.servingsBase || 4;
+  const checked = new Set();
+
+  const sheet = openSheet(`
+    ${recipe.photoDataUrl ? `<img class="detail-photo" src="${recipe.photoDataUrl}" alt="">` : ''}
+    <div class="detail-body">
+      <h1 class="detail-title">${escapeHtml(recipe.title)}</h1>
+      <div class="detail-tags">${(recipe.tags || []).map(miniTagHtml).join('')}</div>
+
+      ${recipe.needsReview ? `<div class="review-banner" id="review-banner">
+        <span>✨ Automatisch ingelezen. Loop het even na — klopt er iets niet, tik dan op <strong>Bewerken</strong>.</span>
+        <button id="review-ok">Klopt ✓</button>
+      </div>` : ''}
+
+      <div class="servings-stepper">
+        <button class="stepper-btn" id="serv-minus">−</button>
+        <div><div class="stepper-val" id="serv-val">${servings}</div></div>
+        <span class="lbl">personen</span>
+        <button class="stepper-btn" id="serv-plus">+</button>
+      </div>
+
+      <div class="detail-section">
+        <h3>Ingrediënten</h3>
+        <ul class="ing-list" id="ing-list"></ul>
+      </div>
+
+      <div class="detail-section">
+        <h3>Bereiding</h3>
+        <ol class="steps-list" id="steps-list"></ol>
+      </div>
+
+      ${recipe.notes ? `<div class="detail-notes">📝 ${escapeHtml(recipe.notes)}</div>` : ''}
+
+      <div class="detail-actions">
+        <button class="btn ghost" id="close-detail">Sluiten</button>
+        <button class="btn primary" id="edit-detail">Bewerken</button>
+      </div>
+    </div>
+  `);
+
+  function renderIngList() {
+    const factor = servings / (recipe.servingsBase || 4);
+    const $list = sheet.querySelector('#ing-list');
+    $list.innerHTML = '';
+    (recipe.ingredients || []).forEach((ing, idx) => {
+      const li = document.createElement('li');
+      if (checked.has(idx)) li.classList.add('checked');
+      const qty = ing.amount != null ? `${formatAmount(ing.amount * factor)}${ing.unit ? ' ' + ing.unit : ''}` : (ing.unit || '');
+      li.innerHTML = `<span class="qty">${escapeHtml(qty)}</span><span class="nm">${escapeHtml(ing.name)}</span>`;
+      li.onclick = () => { checked.has(idx) ? checked.delete(idx) : checked.add(idx); li.classList.toggle('checked'); };
+      $list.appendChild(li);
+    });
+  }
+  renderIngList();
+
+  sheet.querySelector('#steps-list').innerHTML = (recipe.steps || []).map((s, i) => `<li><div class="num">${i + 1}</div><p>${escapeHtml(s)}</p></li>`).join('');
+
+  sheet.querySelector('#serv-minus').onclick = () => { servings = Math.max(1, servings - 1); sheet.querySelector('#serv-val').textContent = servings; renderIngList(); };
+  sheet.querySelector('#serv-plus').onclick = () => { servings += 1; sheet.querySelector('#serv-val').textContent = servings; renderIngList(); };
+  sheet.querySelector('#close-detail').onclick = closeOverlay;
+  sheet.querySelector('#edit-detail').onclick = () => openRecipeForm(recipe, { isNew: false });
+  const reviewOk = sheet.querySelector('#review-ok');
+  if (reviewOk) reviewOk.onclick = async () => {
+    delete recipe.needsReview;
+    await dbPut(recipe);
+    sheet.querySelector('#review-banner').remove();
+  };
+}
+
+/* ========================= search ========================= */
+
+document.getElementById('btn-search').onclick = () => {
+  const wrap = document.getElementById('search-wrap');
+  wrap.hidden = !wrap.hidden;
+  if (!wrap.hidden) document.getElementById('search-input').focus();
+  else { state.searchQuery = ''; document.getElementById('search-input').value = ''; renderGrid(); }
+};
+document.getElementById('search-input').addEventListener('input', (e) => { state.searchQuery = e.target.value; renderGrid(); });
+
+/* ========================= settings (backup export/import) ========================= */
+
+document.getElementById('btn-settings').onclick = () => {
+  const sheet = openSheet(`
+    <div class="sheet-head"><h2>Instellingen</h2><button class="icon-btn" onclick="closeOverlay()">✕</button></div>
+    <div class="sheet-body">
+      <div class="notice">Je recepten staan lokaal op dit toestel. Maak af en toe een back-up zodat je ze niet kwijtraakt.</div>
+      <button class="btn primary block" id="export-btn">⬇️ Exporteer back-up</button>
+      <button class="btn ghost block" id="import-btn">⬆️ Importeer back-up</button>
+    </div>
+  `, { center: true });
+  sheet.querySelector('#export-btn').onclick = () => {
+    const payload = { version: 1, exportedAt: new Date().toISOString(), recipes: state.recipes };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `njam-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  sheet.querySelector('#import-btn').onclick = () => document.getElementById('backup-import-input').click();
+};
+
+document.getElementById('backup-import-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    const list = Array.isArray(payload) ? payload : payload.recipes;
+    if (!Array.isArray(list)) throw new Error('Ongeldig back-up bestand');
+    for (const r of list) {
+      if (!r.id) r.id = uid();
+      await dbPut(r);
+    }
+    state.recipes = await dbGetAll();
+    closeOverlay();
+    renderGrid();
+    showToast(`✅ ${list.length} recepten geïmporteerd`);
+  } catch (err) {
+    showToast('⚠️ Kon back-up niet importeren');
+  }
+});
+
+/* ========================= install prompt ========================= */
+
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner('android');
+});
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function showInstallBanner(kind) {
+  if (isStandalone() || localStorage.getItem('receptjes-install-dismissed')) return;
+  const slot = document.getElementById('install-banner-slot');
+  const txt = kind === 'ios'
+    ? 'Zet Njam op je beginscherm: tik op <strong>Deel</strong> onderin Safari, en dan op <strong>"Zet op beginscherm"</strong>.'
+    : 'Installeer Njam als app op je gsm voor snelle toegang, ook offline.';
+  slot.innerHTML = `<div class="install-banner"><span style="font-size:20px;">📲</span><div class="txt">${txt}</div>${kind === 'android' ? '<button id="do-install">Installeer</button>' : ''}<button class="close" id="dismiss-install">✕</button></div>`;
+  const doBtn = document.getElementById('do-install');
+  if (doBtn) doBtn.onclick = async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    slot.innerHTML = '';
+  };
+  document.getElementById('dismiss-install').onclick = () => { localStorage.setItem('receptjes-install-dismissed', '1'); slot.innerHTML = ''; };
+}
+(function checkIos() {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isIos && !isStandalone()) showInstallBanner('ios');
+})();
+
+/* ========================= init ========================= */
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
+async function seedInitialRecipes() {
+  if (localStorage.getItem('receptjes-seeded')) return;
+  localStorage.setItem('receptjes-seeded', '1');
+  try {
+    const res = await fetch('seed-recipes.json');
+    if (!res.ok) return;
+    const payload = await res.json();
+    for (const r of payload.recipes || []) await dbPut(r);
+  } catch (err) { /* no seed file shipped, or offline on first run — fine, app just starts empty */ }
+}
+
+(async function init() {
+  renderTagFilterRow();
+  try {
+    state.recipes = await dbGetAll();
+    if (!state.recipes.length) {
+      await seedInitialRecipes();
+      state.recipes = await dbGetAll();
+    }
+  } catch (err) {
+    state.recipes = [];
+  }
+  renderGrid();
+})();
+</script>
+</body>
+</html>
