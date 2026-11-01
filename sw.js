@@ -2,15 +2,19 @@
 // opens offline (UI + saved recipes, which live in IndexedDB, not this cache).
 // CDN libraries used for photo/PDF import (pdf.js, Tesseract.js) are loaded
 // on demand and need network the first time — that's expected, not a bug.
-const CACHE = "receptjes-shell-v3";
+const CACHE = "receptjes-shell-v4";
 const SHELL = [
   "./",
   "./index.html",
   "./manifest.json",
+  "./firebase-config.js",
   "./icon-192.png",
   "./logo-wordmark.png",
   "./logo-mark.png"
 ];
+// Versioned Firebase SDK files never change, so they are served from cache once fetched;
+// without them an installed, logged-in app could not start offline.
+const FIREBASE_SDK_PREFIX = "https://www.gstatic.com/firebasejs/";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -28,8 +32,18 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  if (event.request.url.startsWith(FIREBASE_SDK_PREFIX)) {
+    event.respondWith(
+      caches.match(event.request).then((hit) => hit || fetch(event.request).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        return res;
+      }))
+    );
+    return;
+  }
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return; // let CDN requests pass through untouched
+  if (url.origin !== self.location.origin) return; // let other CDN requests pass through untouched
   event.respondWith(
     fetch(event.request)
       .then((res) => {

@@ -29,11 +29,48 @@ gepusht wordt, staat na een minuutje live.
 - **iPhone (Safari):** open de link, tik op **Deel**, en dan op
   **"Zet op beginscherm"**.
 
+## Inloggen met Google instellen (eenmalig)
+
+Zodra `firebase-config.js` is ingevuld, vraagt Njam om in te loggen met Google.
+Iedereen krijgt dan een eigen receptenboek dat in de cloud bewaard wordt en op
+al zijn/haar toestellen hetzelfde is. Recepten die al op een toestel stonden,
+gaan bij de eerste keer inloggen automatisch mee naar het account. Zolang
+`firebase-config.js` nog `VUL_HIER_IN` bevat, werkt de app zonder login.
+
+1. Ga naar https://console.firebase.google.com en klik **Project toevoegen**.
+   Naam: `njam`. Google Analytics mag uit.
+2. **Build → Authentication → Get started** → tab **Sign-in method** →
+   **Google** → **Enable**. Vul bij *Public-facing name* `Njam` in, kies je
+   e-mailadres als support-e-mail en klik **Save**.
+3. Nog in Authentication: tab **Settings** → **Authorized domains** →
+   **Add domain** → `hannebroeckx-deckx.github.io`.
+4. **Build → Firestore Database → Create database** → locatie in Europa
+   (bv. `eur3`) → **production mode**. Ga naar het tabblad **Rules**, vervang
+   alles door het volgende en klik **Publish** (zo kan iedereen enkel bij zijn
+   eigen recepten):
+
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /users/{uid}/recipes/{recipeId} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
+     }
+   }
+   ```
+5. Tandwiel linksboven → **Project settings** → **General** → onderaan bij
+   **Your apps** het web-icoon `</>` → bijnaam `njam-web` (Firebase Hosting
+   niet aanvinken) → **Register app**. Kopieer de waarden uit het blokje
+   `const firebaseConfig = { ... }` naar `firebase-config.js`.
+
 ## Je recepten op een nieuw toestel
 
-Je eigen recepten staan **niet** online — enkel de app. Op een nieuw toestel
-begint Njam leeg; tik dan op **Importeer je recepten** (of ⚙️ Instellingen →
-Importeer back-up) en kies een back-upbestand. Je 31 recepten uit de oude
+Je eigen recepten staan **niet** in de publieke GitHub-repository — enkel de
+app. Met login staan ze in je account en zie je ze na het inloggen op elk
+toestel. Zonder login begint Njam op een nieuw toestel leeg; tik dan op
+**Importeer je recepten** (of ⚙️ Instellingen → Importeer back-up) en kies een
+back-upbestand. Een import komt met login meteen in je account terecht. Je 31 recepten uit de oude
 Word-documenten staan in `seed-recipes.json` in deze map (die map staat in
 OneDrive, dus je vindt het bestand ook via de OneDrive-app op je gsm).
 

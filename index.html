@@ -175,6 +175,32 @@
   }
   .empty-state p { font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
   .empty-state .empty-import { font-size: 13px; margin: 18px 0 0; }
+
+  /* ---------- login ---------- */
+  .auth-screen {
+    position: fixed; inset: 0; z-index: 70; background: var(--cream);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .auth-card { width: 100%; max-width: 340px; text-align: center; }
+  .auth-card .logo-mark { width: 180px; margin: 0 auto 22px; }
+  .auth-card .logo-wordmark { height: 46px; margin: 0 auto 12px; }
+  .auth-sub { font-size: 14px; line-height: 1.5; color: var(--ink-soft); margin: 0 0 28px; }
+  .google-btn {
+    display: inline-flex; align-items: center; gap: 12px; background: var(--card); color: var(--ink);
+    border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 13px 24px;
+    font-family: inherit; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 2px 8px var(--shadow);
+  }
+  .google-btn:disabled { opacity: 0.6; cursor: default; }
+  .auth-error { font-size: 13px; line-height: 1.45; color: var(--rose-text); margin: 16px 0 0; }
+
+  .account-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-md);
+    padding: 12px 12px 12px 14px; margin-bottom: 12px;
+  }
+  .account-row .btn { flex: none; padding: 10px 14px; font-size: 13.5px; }
+  .account-label { font-size: 11.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
+  .account-email { font-size: 14px; font-weight: 600; word-break: break-all; }
   .link-btn {
     background: none; border: none; padding: 0; font: inherit; font-weight: 700;
     color: var(--brand); text-decoration: underline; cursor: pointer;
@@ -419,6 +445,19 @@
 <input type="file" id="file-input" accept="image/*,application/pdf" hidden>
 <input type="file" id="backup-import-input" accept=".json,application/json" hidden>
 
+<div class="auth-screen" id="auth-screen" hidden>
+  <div class="auth-card">
+    <div class="logo-mark" aria-hidden="true"></div>
+    <div class="logo-wordmark" role="img" aria-label="Njam"></div>
+    <p class="auth-sub">Jouw receptenboek, veilig bewaard in je eigen account en op al je toestellen.</p>
+    <button type="button" class="google-btn" id="google-login">
+      <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Inloggen met Google
+    </button>
+    <p class="auth-error" id="auth-error" hidden></p>
+  </div>
+</div>
+
 <div id="overlay-root"></div>
 <div id="toast-root"></div>
 
@@ -465,7 +504,7 @@ function openDB() {
     req.onerror = () => reject(req.error);
   });
 }
-async function dbGetAll() {
+async function localGetAll() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
@@ -473,7 +512,7 @@ async function dbGetAll() {
     req.onerror = () => reject(req.error);
   });
 }
-async function dbPut(recipe) {
+async function localPut(recipe) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
@@ -482,7 +521,7 @@ async function dbPut(recipe) {
     tx.onerror = () => reject(tx.error);
   });
 }
-async function dbDelete(id) {
+async function localDelete(id) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
@@ -492,13 +531,42 @@ async function dbDelete(id) {
   });
 }
 
+/* ========================= storage: account (Firebase) or this device ========================= */
+
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const cloud = { user: null, auth: null, authMod: null, db: null, fs: null, unsub: null };
+
+const recipeDoc = id => cloud.fs.doc(cloud.db, 'users', cloud.user.uid, 'recipes', id);
+// Firestore rejects undefined values; a JSON round-trip drops them
+const firestoreSafe = recipe => JSON.parse(JSON.stringify(recipe));
+const cloudWriteFailed = err => { console.error('[njam] opslaan in account mislukt:', err); showToast('⚠️ Opslaan in je account mislukt. Probeer opnieuw.', 4500); };
+
+// Account writes are not awaited: offline, Firestore only settles the promise once the server confirms,
+// but its local cache (and the live listener) update immediately, so the app keeps working.
+async function dbGetAll() { return cloud.user ? state.recipes : localGetAll(); }
+async function dbPut(recipe) {
+  if (!cloud.user) return localPut(recipe);
+  cloud.fs.setDoc(recipeDoc(recipe.id), firestoreSafe(recipe)).catch(cloudWriteFailed);
+}
+async function dbDelete(id) {
+  if (!cloud.user) return localDelete(id);
+  cloud.fs.deleteDoc(recipeDoc(id)).catch(cloudWriteFailed);
+}
+
 /* ========================= state ========================= */
 
 const state = {
   recipes: [],
+  ready: false,
   filterTags: new Set(),
   searchQuery: '',
 };
+
+// the account's live listener may already have added this recipe, so never push a second copy
+function upsertInState(recipe) {
+  const i = state.recipes.findIndex(r => r.id === recipe.id);
+  if (i > -1) state.recipes[i] = recipe; else state.recipes.push(recipe);
+}
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2));
 
@@ -1128,6 +1196,7 @@ function filteredRecipes() {
 function renderGrid() {
   const list = filteredRecipes();
   $grid.innerHTML = '';
+  if (!state.ready) { $empty.hidden = true; $grid.hidden = true; return; }
   if (!state.recipes.length) {
     $empty.hidden = false; $grid.hidden = true;
     return;
@@ -1256,7 +1325,7 @@ async function importRecipeFromFile(file) {
       updatedAt: now,
     };
     await dbPut(recipe);
-    state.recipes.push(recipe);
+    upsertInState(recipe);
     renderGrid();
     closeOverlay();
     openDetail(recipe.id);
@@ -1405,8 +1474,7 @@ function openRecipeForm(recipeOrNull, opts = {}) {
     draft.updatedAt = Date.now();
     if (!draft.createdAt) draft.createdAt = draft.updatedAt;
     await dbPut(draft);
-    const idx = state.recipes.findIndex(r => r.id === draft.id);
-    if (idx > -1) state.recipes[idx] = draft; else state.recipes.push(draft);
+    upsertInState(draft);
     closeOverlay();
     renderGrid();
     showToast('✅ Recept opgeslagen');
@@ -1518,14 +1586,23 @@ document.getElementById('search-input').addEventListener('input', (e) => { state
 /* ========================= settings (backup export/import) ========================= */
 
 document.getElementById('btn-settings').onclick = () => {
+  const account = cloud.user
+    ? `<div class="account-row">
+         <div><div class="account-label">Ingelogd als</div><div class="account-email">${escapeHtml(cloud.user.email || cloud.user.displayName || '')}</div></div>
+         <button class="btn ghost" id="logout-btn">Uitloggen</button>
+       </div>
+       <div class="notice">Je recepten staan veilig in je account en zijn op al je toestellen beschikbaar.</div>`
+    : `<div class="notice">Je recepten staan lokaal op dit toestel. Maak af en toe een back-up zodat je ze niet kwijtraakt.</div>`;
   const sheet = openSheet(`
     <div class="sheet-head"><h2>Instellingen</h2><button class="icon-btn" onclick="closeOverlay()">✕</button></div>
     <div class="sheet-body">
-      <div class="notice">Je recepten staan lokaal op dit toestel. Maak af en toe een back-up zodat je ze niet kwijtraakt.</div>
+      ${account}
       <button class="btn primary block" id="export-btn">⬇️ Exporteer back-up</button>
       <button class="btn ghost block" id="import-btn">⬆️ Importeer back-up</button>
     </div>
   `, { center: true });
+  const logout = sheet.querySelector('#logout-btn');
+  if (logout) logout.onclick = () => cloud.authMod.signOut(cloud.auth);
   sheet.querySelector('#export-btn').onclick = () => {
     const payload = { version: 1, exportedAt: new Date().toISOString(), recipes: state.recipes };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1550,8 +1627,8 @@ document.getElementById('backup-import-input').addEventListener('change', async 
     for (const r of list) {
       if (!r.id) r.id = uid();
       await dbPut(r);
+      upsertInState(r);
     }
-    state.recipes = await dbGetAll();
     closeOverlay();
     renderGrid();
     showToast(`✅ ${list.length} recepten geïmporteerd`);
@@ -1606,21 +1683,126 @@ async function seedInitialRecipes() {
     const res = await fetch('seed-recipes.json');
     if (!res.ok) return;
     const payload = await res.json();
-    for (const r of payload.recipes || []) await dbPut(r);
+    for (const r of payload.recipes || []) await localPut(r);
   } catch (err) { /* no seed file shipped, or offline on first run — fine, app just starts empty */ }
 }
 
+/* ========================= Google login (only when firebase-config.js is filled in) ========================= */
+
+const AUTH_ERRORS = {
+  'auth/network-request-failed': 'Geen verbinding — controleer je internet.',
+  'auth/unauthorized-domain': 'Deze website staat nog niet bij de toegestane domeinen in Firebase.',
+  'auth/popup-blocked': 'Je browser blokkeerde het Google-venster. Sta pop-ups toe en probeer opnieuw.',
+  'auth/operation-not-allowed': 'Inloggen met Google staat nog niet aan in Firebase.',
+};
+function showAuthError(e) {
+  console.error('[njam] inloggen mislukt:', e);
+  const el = document.getElementById('auth-error');
+  el.textContent = AUTH_ERRORS[e && e.code] || 'Inloggen mislukt. Probeer opnieuw.';
+  el.hidden = false;
+}
+
+async function startCloud() {
+  let config;
+  try { ({ firebaseConfig: config } = await import('./firebase-config.js')); } catch (err) { return false; }
+  if (!config || !config.apiKey || config.apiKey.includes('VUL_HIER_IN')) return false;
+  const [appMod, authMod, fs] = await Promise.all([
+    import(FIREBASE_SDK + 'firebase-app.js'),
+    import(FIREBASE_SDK + 'firebase-auth.js'),
+    import(FIREBASE_SDK + 'firebase-firestore.js'),
+  ]);
+  const app = appMod.initializeApp(config);
+  Object.assign(cloud, {
+    auth: authMod.getAuth(app),
+    authMod,
+    fs,
+    // the persistent cache keeps the recipe book usable offline and syncs changes once back online
+    db: fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) }),
+  });
+  authMod.getRedirectResult(cloud.auth).catch(showAuthError);
+  authMod.onAuthStateChanged(cloud.auth, user => (user ? onSignedIn(user) : onSignedOut()));
+  return true;
+}
+
+// Recipes already on this device (imported or made before logging in) move into the account once,
+// then leave the device so a recipe deleted in the account can't come back from here later.
+function moveLocalRecipesToAccount() {
+  localGetAll().then(local => {
+    if (!local.length) return;
+    const batch = cloud.fs.writeBatch(cloud.db);
+    for (const r of local) batch.set(recipeDoc(r.id), firestoreSafe(r));
+    return batch.commit().then(async () => {
+      for (const r of local) await localDelete(r.id);
+      showToast(`☁️ ${local.length} recepten van dit toestel staan nu in je account`, 3500);
+    });
+  }).catch(err => console.error('[njam] recepten naar account zetten mislukt:', err));
+}
+
+function onSignedIn(user) {
+  cloud.user = user;
+  document.getElementById('auth-screen').hidden = true;
+  moveLocalRecipesToAccount();
+  const recipesCol = cloud.fs.collection(cloud.db, 'users', user.uid, 'recipes');
+  cloud.unsub = cloud.fs.onSnapshot(recipesCol, snap => {
+    state.recipes = snap.docs.map(d => d.data());
+    state.ready = true;
+    renderGrid();
+  }, err => {
+    console.error('[njam] recepten laden mislukt:', err);
+    showToast('⚠️ Kon je recepten niet laden.', 4500);
+  });
+}
+
+function onSignedOut() {
+  if (cloud.unsub) { cloud.unsub(); cloud.unsub = null; }
+  cloud.user = null;
+  state.recipes = [];
+  state.ready = false;
+  closeOverlay();
+  renderGrid();
+  document.getElementById('google-login').disabled = false;
+  document.getElementById('auth-screen').hidden = false;
+}
+
+document.getElementById('google-login').onclick = async () => {
+  const btn = document.getElementById('google-login');
+  document.getElementById('auth-error').hidden = true;
+  btn.disabled = true;
+  const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = cloud.authMod;
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  try {
+    await signInWithPopup(cloud.auth, provider);
+  } catch (e) {
+    btn.disabled = false;
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+    // pop-ups don't work in every installed-app view; a full-page redirect does
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
+      signInWithRedirect(cloud.auth, provider).catch(showAuthError);
+      return;
+    }
+    showAuthError(e);
+  }
+};
+
 (async function init() {
   renderTagFilterRow();
+  renderGrid();
   try {
-    state.recipes = await dbGetAll();
+    if (await startCloud()) return; // the login state decides what happens next
+  } catch (err) {
+    console.error('[njam] account starten mislukt, verder op dit toestel:', err);
+  }
+  try {
+    state.recipes = await localGetAll();
     if (!state.recipes.length) {
       await seedInitialRecipes();
-      state.recipes = await dbGetAll();
+      state.recipes = await localGetAll();
     }
   } catch (err) {
     state.recipes = [];
   }
+  state.ready = true;
   renderGrid();
 })();
 </script>
