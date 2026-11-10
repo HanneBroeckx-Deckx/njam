@@ -635,14 +635,15 @@ const normalizeLine = s => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
 function cleanOcrLine(s) {
   return s.replace(/\s+/g, ' ')
-    .replace(/^[\s•·*►▪■□●○◦‣⁃»«°~|_=]+/, '')
+    .replace(/^[\s•·*►▪■□●○◦‣⁃»«°~|_=+©®]+/, '')
     .replace(/^[-–—](?=\s)/, '')
     .replace(/[\s|_~]+$/, '')
     .trim();
 }
 
+// a capitalised "Een …" opens a sentence ("Een echte klassieker"); a lowercase one is a quantity ("een snufje zout")
 function startsWithQuantity(s) {
-  return /^(\d|[½¼¾⅓⅔⅛])/.test(s) || (NUMBER_WORD_RE.test(s) && s.length <= 40 && !/[.!?]$/.test(s));
+  return /^(\d|[½¼¾⅓⅔⅛])/.test(s) || (/^\p{Ll}/u.test(s) && NUMBER_WORD_RE.test(s) && s.length <= 40 && !/[.!?]$/.test(s));
 }
 
 function joinWrapped(lines) {
@@ -655,12 +656,15 @@ function joinWrapped(lines) {
 }
 
 function isProse(text) { return text.length >= 60 && /[.!?](\s|$)/.test(text); }
-function isStepNumberStart(line) { return /^(?:[Ss]tap\s*)?\d{1,2}\s*[.)]\s+\p{Lu}/u.test(line) || /^[Ss]tap\s*\d/.test(line); }
+// "1." is often read as "1-" or "1:" from a photo
+function isStepNumberStart(line) { return /^(?:[Ss]tap\s*)?\d{1,2}\s*[.):\-–]\s+\p{Lu}/u.test(line) || /^[Ss]tap\s*\d/.test(line); }
+// "… 200 °C. Schil de …": ingredient lines practically never contain a full sentence break
+function hasSentenceBreak(line) { return line.length > 45 && /\p{Ll}[.!?]\s+\p{Lu}/u.test(line); }
 function isSubHeading(line) { return !startsWithQuantity(line) && line.length <= 40 && (/:$/.test(line) || /^voor (de|het|een) /i.test(line)); }
 
 function splitSteps(text) {
   return text
-    .split(/(?:^|\s)(?:[Ss]tap\s*)?\d{1,2}\s*[.)]\s+(?=\p{Lu})/u)
+    .split(/(?:^|\s)(?:[Ss]tap\s*)?\d{1,2}\s*[.):\-–]\s+(?=\p{Lu})/u)
     .map(s => s.replace(/^(?:[Ss]tap\s*)?\d{1,2}\s+(?=\p{Lu})/u, '').trim())
     .filter(s => letterCount(s) >= 3);
 }
@@ -773,9 +777,21 @@ function parseRecipeLayout({ paragraphs, titleHint }) {
   const ingredients = [], steps = [], notes = [], intro = [];
   let state = 'pre';
 
-  const pushSteps = lines => { for (const s of splitSteps(joinWrapped(lines))) steps.push(s); };
+  // in the method, a line starting with "4 Schenk…" is step 4 even when the photo lost the period after the 4
+  const pushSteps = lines => {
+    const marked = lines.map(l => l.replace(/^(\d{1,2})\s+(?=\p{Lu})/u, '$1. '));
+    for (const s of splitSteps(joinWrapped(marked))) steps.push(s);
+  };
   const pushIngredient = (line, prev) => {
-    line = line.replace(/^[lI](?=\s+\p{L})/u, '1'); // OCR often reads a leading "1" as l or I
+    // common OCR misreads in quantities: "l ui" (1), "V2 bosje" (½), "2 dÌ room" (dl), "1d bouillon" (1 dl)
+    line = line
+      .replace(/^[lI](?=\s+\p{L})/u, '1')
+      .replace(/^(?:V2|Y2|Va|Vz|%)(?=\s)/, '½')
+      .replace(/^(\d+(?:[.,]\d+)?)\s*([detcm])[lI1|Ì](?=\s)/, '$1 $2l')
+      .replace(/^(\d+(?:[.,]\d+)?)\s*d(?=\s)/, '$1 dl')
+      .replace(/^(\d+(?:[.,]\d+)?)\s*(dl|ml|tl)(?=\p{Ll}{3})/u, '$1 $2 ')
+      .replace(/^(\d+)\s+8\s+(?=\p{Ll})/u, '$1 g ')
+      .replace(/^(\d+0)8\s+(?=\p{Ll})/u, '$1 g ');
     if (isSubHeading(line)) { ingredients.push({ amount: null, unit: '', name: '— ' + line.replace(/:$/, '').trim() + ' —' }); return; }
     const last = ingredients[ingredients.length - 1];
     if (last && prev && !startsWithQuantity(line) && /^\p{Ll}/u.test(line) && prev.length >= 28 && !/[,;:]$/.test(prev) && !last.name.startsWith('—')) {
@@ -793,11 +809,11 @@ function parseRecipeLayout({ paragraphs, titleHint }) {
       if (state === 'steps') { flushIntro(); pushSteps(lines.slice(i)); return; }
       const proseAhead = !startsWithQuantity(line) && line.length >= 30 && isProse(joinWrapped(lines.slice(i)));
       if (state === 'ing') {
-        if (isStepNumberStart(line) || proseAhead) { state = 'steps'; pushSteps(lines.slice(i)); return; }
+        if (isStepNumberStart(line) || proseAhead || hasSentenceBreak(line)) { state = 'steps'; pushSteps(lines.slice(i)); return; }
         pushIngredient(line, lines[i - 1]);
         continue;
       }
-      if (isStepNumberStart(line)) { flushIntro(); state = 'steps'; pushSteps(lines.slice(i)); return; }
+      if (isStepNumberStart(line) || (hasSentenceBreak(line) && ingredients.length)) { flushIntro(); state = 'steps'; pushSteps(lines.slice(i)); return; }
       const nextHasQty = i + 1 < lines.length && startsWithQuantity(lines[i + 1]);
       if ((startsWithQuantity(line) && line.length <= 70 && !/[.!?]$/.test(line)) || (isSubHeading(line) && nextHasQty)) {
         flushIntro(); state = 'ing'; pushIngredient(line, lines[i - 1]);
@@ -948,14 +964,54 @@ async function runOcr(canvas, onProgress, from, to) {
     // column to the method column beside it and can drop big titles; reading order is rebuilt in layoutFromOcr.
     await worker.setParameters({ tessedit_pageseg_mode: '11' });
     const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
+    await rereadDoubtfulLines(worker, canvas, data, () => onProgress({ status: 'Twijfelgevallen nalezen...', pct: to - 2 }));
     return data;
   } finally {
     await worker.terminate();
   }
 }
 
-// The tallest text on a cookbook page is almost always the recipe name; a wrapped title continues
-// on the next line(s) of the same paragraph at a similar size.
+// Lines the page-wide pass was unsure about (a bullet glued to "1 ui", a curled or blurry patch) get a
+// second, single-line read of just that strip, enlarged. Real text then usually comes back confident;
+// noise from a food photo stays low-confidence and is filtered out later.
+async function rereadDoubtfulLines(worker, canvas, data, onStart) {
+  const lines = (data.blocks || []).flatMap(b => b.paragraphs.flatMap(p => p.lines)).filter(l => l.words && l.words.length);
+  const sure = lines.filter(l => l.confidence >= 80);
+  if (!sure.length) return;
+  const heights = sure.map(l => l.bbox.y1 - l.bbox.y0).sort((a, b) => a - b);
+  const typical = heights[Math.floor(heights.length / 2)];
+  // Only lines that start at the same left edge as real text in a column are worth a second look;
+  // wood grain, a tablecloth or a food photo produce "lines" at random positions.
+  const aligned = l => sure.filter(s => Math.abs(s.bbox.x0 - l.bbox.x0) < typical * 1.2).length >= 2;
+  const doubtful = lines.filter(l => {
+    const w = l.bbox.x1 - l.bbox.x0, h = l.bbox.y1 - l.bbox.y0;
+    return l.confidence < 70 && h > typical * 0.5 && h < typical * 2.2 && w > h * 1.2 && aligned(l);
+  }).slice(0, 15);
+  if (!doubtful.length) return;
+  onStart();
+  await worker.setParameters({ tessedit_pageseg_mode: '7' });
+  for (const l of doubtful) {
+    const { x0, y0, x1, y1 } = l.bbox, h = y1 - y0;
+    const sx = Math.max(0, x0 - h * 0.6), sy = Math.max(0, y0 - h * 0.3);
+    const sw = Math.min(canvas.width, x1 + h * 0.6) - sx, sh = Math.min(canvas.height, y1 + h * 0.3) - sy;
+    const scale = Math.min(3, Math.max(1, 48 / h));
+    const crop = document.createElement('canvas');
+    crop.width = Math.round(sw * scale); crop.height = Math.round(sh * scale);
+    const cx = crop.getContext('2d');
+    cx.imageSmoothingQuality = 'high';
+    cx.drawImage(canvas, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
+    const { data: again } = await worker.recognize(crop);
+    const text = (again.text || '').replace(/\s+/g, ' ').trim();
+    if (text && again.confidence > l.confidence + 5) {
+      l.text = text;
+      l.confidence = again.confidence;
+      l.words = [{ text, confidence: again.confidence, bbox: l.bbox }];
+    }
+  }
+}
+
+// The biggest text on a cookbook page is almost always the recipe name; a title that wraps continues
+// on the neighbouring lines of the same paragraph (above or below the biggest one) at a similar size.
 function pickTitleLines(lines) {
   if (!lines.length) return null;
   const heights = lines.map(l => l.height).sort((a, b) => a - b);
@@ -969,9 +1025,58 @@ function pickTitleLines(lines) {
     if (!best || l.height > best.height * 1.05) best = { ...l, i };
   });
   if (!best) return null;
+  const sameTitle = j => lines[j].para === best.para && lines[j].height >= best.height * 0.75;
   const parts = [best.text];
-  for (let j = best.i + 1; j < lines.length && lines[j].para === best.para && lines[j].height >= best.height * 0.8; j++) parts.push(lines[j].text);
+  for (let j = best.i - 1; j >= 0 && sameTitle(j); j--) parts.unshift(lines[j].text);
+  for (let j = best.i + 1; j < lines.length && sameTitle(j); j++) parts.push(lines[j].text);
   return parts;
+}
+
+// Phones are rarely held perfectly level. Find the angle at which the rows of text line up best
+// (projection-profile method on a small copy) and turn the page level before it is read.
+function deskew(canvas) {
+  const s = Math.min(1, 1000 / Math.max(canvas.width, canvas.height));
+  const w = Math.round(canvas.width * s), h = Math.round(canvas.height * s);
+  const small = document.createElement('canvas'); small.width = w; small.height = h;
+  const sctx = small.getContext('2d', { willReadFrequently: true });
+  sctx.drawImage(canvas, 0, 0, w, h);
+  const d = sctx.getImageData(0, 0, w, h).data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] < 140) n++;
+  if (n < 500) return canvas;
+  const step = Math.max(1, Math.ceil(n / 150000));
+  const xs = new Float32Array(Math.ceil(n / step)), ys = new Float32Array(xs.length);
+  let k = 0, seen = 0;
+  for (let y = 0, i = 0; y < h; y++) {
+    for (let x = 0; x < w; x++, i += 4) {
+      if (d[i] < 140 && seen++ % step === 0) { xs[k] = x - w / 2; ys[k] = y - h / 2; k++; }
+    }
+  }
+  const diag = Math.ceil(Math.hypot(w, h));
+  const bins = new Float64Array(diag + 2);
+  const score = deg => {
+    const a = deg * Math.PI / 180, sin = Math.sin(a), cos = Math.cos(a);
+    bins.fill(0);
+    for (let j = 0; j < k; j++) bins[Math.round(ys[j] * cos - xs[j] * sin + diag / 2)]++;
+    let sum = 0;
+    for (let b = 0; b < bins.length; b++) sum += bins[b] * bins[b];
+    return sum;
+  };
+  let best = 0, bestScore = score(0);
+  for (let deg = -15; deg <= 15; deg += 0.5) { const sc = score(deg); if (sc > bestScore) { best = deg; bestScore = sc; } }
+  const coarse = best;
+  for (let deg = coarse - 0.5; deg <= coarse + 0.5; deg += 0.1) { const sc = score(deg); if (sc > bestScore) { best = deg; bestScore = sc; } }
+  if (Math.abs(best) < 0.4) return canvas;
+
+  const a = -best * Math.PI / 180;
+  const W = Math.ceil(Math.abs(canvas.width * Math.cos(a)) + Math.abs(canvas.height * Math.sin(a)));
+  const H = Math.ceil(Math.abs(canvas.width * Math.sin(a)) + Math.abs(canvas.height * Math.cos(a)));
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const octx = out.getContext('2d');
+  octx.fillStyle = '#f5f5f5'; octx.fillRect(0, 0, W, H);
+  octx.translate(W / 2, H / 2); octx.rotate(a);
+  octx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+  return out;
 }
 
 // Text fragments with their position, split wherever a line has a gap far wider than a word space
@@ -982,13 +1087,22 @@ function ocrSegments(data) {
     for (const para of block.paragraphs || []) {
       for (const line of para.lines || []) {
         const words = (line.words || []).filter(w => w.text.trim());
-        if (words.length) lines.push(words);
+        if (!words.length) continue;
+        const text = words.map(w => w.text.trim()).join(' ');
+        const visible = text.replace(/\s/g, '').length;
+        // A photo, pattern or smudge read as letters comes back with low confidence and few real letters;
+        // left in, it also fakes column edges and scrambles the reading order.
+        if (line.confidence < 45 || letterCount(text) < 2 || letterCount(text) / visible < 0.4) continue;
+        // scraps like "pe" or "HG" are noise unless they start with a quantity ("1 ui", "2 ei")
+        const longestWord = Math.max(0, ...(text.match(/\p{L}+/gu) || []).map(w => w.length));
+        if (longestWord < 3 && !/^[^\p{L}\d]*[\d½¼¾⅓⅔]/u.test(text)) continue;
+        lines.push({ words, size: (line.rowAttributes && line.rowAttributes.row_height) || 0 });
       }
     }
   }
-  const pageW = Math.max(1, ...lines.flat().map(w => w.bbox.x1));
+  const pageW = Math.max(1, ...lines.flatMap(l => l.words.map(w => w.bbox.x1)));
   const segs = [];
-  for (const words of lines) {
+  for (const { words, size } of lines) {
     const lineH = Math.max(...words.map(w => w.bbox.y1 - w.bbox.y0));
     let cur = [];
     const flush = () => {
@@ -999,6 +1113,8 @@ function ocrSegments(data) {
         y0: Math.min(...cur.map(w => w.bbox.y0)), y1: Math.max(...cur.map(w => w.bbox.y1)),
       };
       s.h = s.y1 - s.y0;
+      // Tesseract's row height measures the font size; a word box shrinks when a line has no ascenders/descenders
+      s.size = size || s.h;
       segs.push(s);
       cur = [];
     };
@@ -1031,8 +1147,13 @@ function findGutters(segs) {
     const gx0 = minX + b * bw, gx1 = minX + (e + 1) * bw;
     if (e - b + 1 >= 2) {
       const left = segs.filter(s => s.x1 <= gx0 + bw), right = segs.filter(s => s.x0 >= gx1 - bw);
-      const sideBySide = left.filter(l => right.some(r => r.y0 < l.y1 && r.y1 > l.y0)).length;
-      if (sideBySide >= 3) gutters.push((gx0 + gx1) / 2);
+      const pairedRight = new Set();
+      const pairedLeft = left.filter(l => {
+        const partners = right.filter(r => r.y0 < l.y1 && r.y1 > l.y0);
+        partners.forEach(r => pairedRight.add(r));
+        return partners.length > 0;
+      });
+      if (pairedLeft.length >= 3 && pairedRight.size >= 3) gutters.push((gx0 + gx1) / 2);
     }
     b = e + 1;
   }
@@ -1042,7 +1163,9 @@ function findGutters(segs) {
 function layoutFromOcr(data) {
   const segs = ocrSegments(data);
   if (!segs.length) return layoutFromPlainText((data.text || '').trim());
-  const medianH = segs.map(s => s.h).sort((a, b) => a - b)[Math.floor(segs.length / 2)];
+  const median = values => values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
+  const medianH = median(segs.map(s => s.h));
+  const medianSize = median(segs.map(s => s.size));
 
   const gutters = findGutters(segs);
   for (const s of segs) {
@@ -1050,30 +1173,36 @@ function layoutFromOcr(data) {
     s.col = s.wide ? -1 : gutters.filter(g => (s.x0 + s.x1) / 2 > g).length;
   }
 
-  // reading order: full-width fragments split the page into bands; inside a band, column by column, top to bottom
-  const byPosition = (a, b) => (Math.abs(a.y0 - b.y0) > 0.5 * Math.min(a.h, b.h) ? a.y0 - b.y0 : a.x0 - b.x0);
-  const ordered = [];
+  // Fragments of one printed line (split by a wide gap, or sitting a little lower near a curled spine)
+  // are joined left to right; lines then go top to bottom.
+  const center = s => (s.y0 + s.y1) / 2;
+  const toRows = parts => {
+    const rows = [];
+    for (const s of parts.slice().sort((a, b) => center(a) - center(b))) {
+      const row = rows[rows.length - 1];
+      if (row && Math.abs(center(s) - center(row[0])) < 0.5 * Math.min(s.h, row[0].h)) row.push(s); else rows.push([s]);
+    }
+    return rows.map(row => {
+      row.sort((a, b) => a.x0 - b.x0);
+      return {
+        text: row.map(s => s.text).join(' '), col: row[0].col, wide: row[0].wide,
+        x0: Math.min(...row.map(s => s.x0)), x1: Math.max(...row.map(s => s.x1)),
+        y0: Math.min(...row.map(s => s.y0)), y1: Math.max(...row.map(s => s.y1)),
+        size: Math.max(...row.map(s => s.size)),
+      };
+    }).map(l => ({ ...l, h: l.y1 - l.y0 }));
+  };
+
+  // reading order: full-width lines split the page into bands; inside a band, column by column
+  const lines = [];
   let narrow = segs.filter(s => !s.wide);
   const takeBand = yLimit => {
     const band = narrow.filter(s => s.y0 < yLimit);
     narrow = narrow.filter(s => s.y0 >= yLimit);
-    band.sort((a, b) => a.col - b.col || byPosition(a, b));
-    ordered.push(...band);
+    for (const c of [...new Set(band.map(s => s.col))].sort((a, b) => a - b)) lines.push(...toRows(band.filter(s => s.col === c)));
   };
-  for (const w of segs.filter(s => s.wide).sort(byPosition)) { takeBand(w.y0); ordered.push(w); }
+  for (const w of toRows(segs.filter(s => s.wide))) { takeBand(w.y0); lines.push(w); }
   takeBand(Infinity);
-
-  // glue fragments that sit on the same printed line back together
-  const lines = [];
-  for (const s of ordered) {
-    const prev = lines[lines.length - 1];
-    if (prev && prev.col === s.col && s.x0 > prev.x0 && Math.abs((prev.y0 + prev.y1) - (s.y0 + s.y1)) / 2 < 0.4 * Math.min(prev.h, s.h)) {
-      prev.text += ' ' + s.text;
-      prev.x1 = Math.max(prev.x1, s.x1); prev.y0 = Math.min(prev.y0, s.y0); prev.y1 = Math.max(prev.y1, s.y1); prev.h = prev.y1 - prev.y0;
-    } else {
-      lines.push({ ...s });
-    }
-  }
 
   // paragraphs: a new one starts at a new column, a bigger vertical gap, or a clear change in text size
   const paragraphs = [];
@@ -1081,8 +1210,9 @@ function layoutFromOcr(data) {
   lines.forEach((l, i) => {
     const prev = lines[i - 1];
     const sameFlow = prev && (l.col === prev.col || (prev.wide && Math.abs(l.x0 - prev.x0) < medianH));
-    const newPara = !sameFlow || l.y0 < prev.y0 || l.y0 - prev.y1 > 0.65 * medianH
-      || (Math.max(l.h, prev.h) > 1.3 * medianH && Math.abs(l.h - prev.h) > 0.3 * Math.max(l.h, prev.h));
+    // line spacing grows with the font, so a big title's lines sit further apart than body text paragraphs do
+    const newPara = !sameFlow || l.y0 < prev.y0 || l.y0 - prev.y1 > 0.65 * Math.min(l.size, prev.size)
+      || (Math.max(l.size, prev.size) > 1.3 * medianSize && Math.abs(l.size - prev.size) > 0.3 * Math.max(l.size, prev.size));
     if (newPara && para.length) { paragraphs.push(para); para = []; }
     l.para = paragraphs.length;
     para.push(l.text);
@@ -1091,7 +1221,7 @@ function layoutFromOcr(data) {
 
   return {
     paragraphs,
-    titleHint: pickTitleLines(lines.map(l => ({ text: l.text, height: l.h, para: l.para }))),
+    titleHint: pickTitleLines(lines.map(l => ({ text: l.text, height: l.size, para: l.para }))),
     text: paragraphs.map(p => p.join('\n')).join('\n\n'),
   };
 }
@@ -1104,7 +1234,7 @@ function layoutFromPlainText(text) {
 async function layoutFromImage(file, onProgress) {
   onProgress({ status: 'Foto voorbereiden...', pct: 3 });
   const img = await loadImageFile(file);
-  const canvas = preprocessForOcr(img);
+  const canvas = deskew(preprocessForOcr(img));
   return layoutFromOcr(await runOcr(canvas, onProgress, 8, 96));
 }
 
@@ -1151,7 +1281,7 @@ async function layoutFromPdf(file, onProgress) {
       const canvas = document.createElement('canvas');
       canvas.width = viewport.width; canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      return layoutFromOcr(await runOcr(preprocessForOcr(canvas), onProgress, 45, 96));
+      return layoutFromOcr(await runOcr(deskew(preprocessForOcr(canvas)), onProgress, 45, 96));
     }
   }
   return { paragraphs, titleHint: pickTitleLines(lines), text: paragraphs.map(p => p.join('\n')).join('\n\n') };
